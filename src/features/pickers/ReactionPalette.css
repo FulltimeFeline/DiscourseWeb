@@ -1,0 +1,38 @@
+.reaction-palette {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sheet);
+}
+.reaction-palette--full {
+  padding: 0;
+  border-radius: var(--radius-md);
+}
+
+.reaction-palette__quick,
+.reaction-palette__more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  transition: background 0.1s, transform 0.1s;
+}
+.reaction-palette__quick:hover,
+.reaction-palette__more:hover {
+  background: var(--bg-hover);
+  transform: scale(1.15);
+}
+.reaction-palette__more {
+  color: var(--text-secondary);
+  font-size: 22px;
+}

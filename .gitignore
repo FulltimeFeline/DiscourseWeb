@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-electron/
+
+# Electron build artifacts (installers, unpacked apps)
+release/
+
+# Local env
+.env
+.env.local
+
+# Editor / OS
+.DS_Store
+*.log

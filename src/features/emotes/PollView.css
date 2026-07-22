@@ -1,0 +1,103 @@
+.poll-view {
+  max-width: 380px;
+  padding: 12px;
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.poll-view__question {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+.poll-view__icon {
+  font-size: 15px;
+}
+
+.poll-view__answers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.poll-view__answer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+  font: inherit;
+}
+.poll-view__answer:disabled {
+  cursor: default;
+}
+.poll-view__answer--selected {
+  border-color: var(--accent);
+}
+.poll-view__fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  transition: width 0.25s ease;
+  z-index: 0;
+}
+.poll-view__radio {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--text-tertiary);
+  box-sizing: border-box;
+}
+.poll-view__radio--on {
+  border-color: var(--accent);
+  background:
+    radial-gradient(circle, var(--accent) 0 4px, transparent 5px);
+}
+.poll-view__answer-text {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+}
+.poll-view__count {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+
+.poll-view__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+.poll-view__end {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 4px 6px;
+}

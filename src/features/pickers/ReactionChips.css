@@ -1,0 +1,39 @@
+.reaction-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.reaction-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-pill);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.reaction-chip:hover {
+  background: var(--bg-hover);
+}
+.reaction-chip--own {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+.reaction-chip__key {
+  font-size: 14px;
+}
+.reaction-chip__count {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+.reaction-chip--add {
+  color: var(--text-tertiary);
+  font-size: 14px;
+}

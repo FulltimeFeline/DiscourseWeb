@@ -1,0 +1,164 @@
+/* Other-user profile card. CSS variables only. */
+
+.dm-profile {
+  display: flex;
+  flex-direction: column;
+}
+.dm-profile__banner {
+  height: 120px;
+  margin: -16px -18px 0;
+  background: linear-gradient(120deg, var(--accent), var(--bg-input));
+  background-size: cover;
+  background-position: center;
+}
+.dm-profile__avatar {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  margin: -46px 0 0;
+  border: 4px solid var(--bg-elevated);
+  background: var(--bg-input);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  color: var(--text-secondary);
+  align-self: flex-start;
+}
+.dm-profile__presence-dot {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 3px solid var(--bg-elevated);
+}
+.dm-profile__presence {
+  margin: 8px 0 0;
+  font-size: calc(13px * var(--font-scale));
+  font-weight: 600;
+}
+.dm-profile__head {
+  margin-top: 10px;
+}
+.dm-profile__name {
+  font-size: calc(19px * var(--font-scale));
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dm-profile__pronouns {
+  font-size: calc(13px * var(--font-scale));
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+.dm-profile__id {
+  display: inline-block;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: calc(12px * var(--font-scale));
+  color: var(--text-secondary);
+  user-select: text;
+  word-break: break-all;
+}
+.dm-profile__status,
+.dm-profile__time {
+  color: var(--text-secondary);
+  font-size: calc(14px * var(--font-scale));
+  margin: 8px 0 0;
+}
+.dm-profile__time {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dm-profile__bio {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  background: var(--bg-input);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: calc(14px * var(--font-scale));
+  white-space: pre-wrap;
+  user-select: text;
+}
+.dm-profile__links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+}
+.dm-profile__link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: calc(14px * var(--font-scale));
+}
+.dm-profile__link-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  font-size: 15px;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dm-profile__mutual {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dm-profile__mutual-title {
+  font-size: calc(12px * var(--font-scale));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+.dm-profile__mutual-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 4px 0;
+  font-size: calc(12px * var(--font-scale));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.dm-profile__mutual-head:hover {
+  color: var(--text-secondary);
+}
+.dm-profile__mutual-row {
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  padding: 6px 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: calc(14px * var(--font-scale));
+}
+.dm-profile__mutual-row:hover {
+  background: var(--bg-hover);
+}
+.dm-profile__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}

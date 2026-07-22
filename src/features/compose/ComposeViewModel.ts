@@ -1,0 +1,231 @@
+// Backing logic for the new-chat / new-room / new-space / join-room flows.
+// Wraps the FFI create/join/DM calls with the record shapes from this SDK build:
+//   CreateRoomParameters {
+//     name?, topic?, isEncrypted, isDirect, visibility: RoomVisibility,
+//     preset: RoomPreset, invite?, avatar?, powerLevelContentOverride?,
+//     joinRuleOverride?: JoinRule, historyVisibilityOverride?, canonicalAlias?
+//   }
+// This build has no `isSpace` field on CreateRoomParameters, so a space is
+// created via a REST POST to /createRoom with `creation_content.type = m.space`.
+
+import {
+  CreateRoomParameters,
+  RoomVisibility,
+  RoomPreset,
+  JoinRule,
+  AllowRule,
+  type ClientInterface,
+} from "@/matrix";
+import type { MatrixSession } from "@/core/MatrixSession";
+
+export interface NewRoomInput {
+  name: string;
+  topic?: string;
+  isEncrypted: boolean;
+  /** public = published + publicly joinable; private = invite-only. */
+  visibility: "public" | "private";
+  invite?: string[];
+  /** When set, the room is added to this space and gets a restricted join rule. */
+  parentSpaceId?: string;
+  alias?: string; // local alias part, no leading # or :server
+}
+
+export interface NewSpaceInput {
+  name: string;
+  topic?: string;
+  visibility: "public" | "private";
+  invite?: string[];
+}
+
+/** Start (or reuse) an encrypted DM with a user. Returns the roomId. */
+export async function startDirectMessage(
+  session: MatrixSession,
+  userId: string,
+): Promise<string> {
+  const existing = session.client.getDmRoom(userId);
+  if (existing) return existing.id();
+  const params: CreateRoomParameters = {
+    name: undefined,
+    topic: undefined,
+    isEncrypted: true,
+    isDirect: true,
+    visibility: new RoomVisibility.Private(),
+    preset: RoomPreset.TrustedPrivateChat,
+    invite: [userId],
+    avatar: undefined,
+    powerLevelContentOverride: undefined,
+    joinRuleOverride: undefined,
+    historyVisibilityOverride: undefined,
+    canonicalAlias: undefined,
+  };
+  return session.client.createRoom(params);
+}
+
+function getDmRoomSafe(client: ClientInterface, userId: string): string | undefined {
+  try {
+    return client.getDmRoom(userId)?.id();
+  } catch {
+    return undefined;
+  }
+}
+
+/** Create a normal room. Adds it to a parent space (REST) when requested. */
+export async function createRoom(
+  session: MatrixSession,
+  input: NewRoomInput,
+): Promise<string> {
+  const isPublic = input.visibility === "public";
+  const invite = (input.invite ?? []).filter(Boolean);
+
+  // If placed in a space, use a restricted join rule so space members can join.
+  const joinRuleOverride =
+    input.parentSpaceId && !isPublic
+      ? new JoinRule.Restricted({
+          rules: [new AllowRule.RoomMembership({ roomId: input.parentSpaceId })],
+        })
+      : undefined;
+
+  const params: CreateRoomParameters = {
+    name: input.name.trim() || undefined,
+    topic: input.topic?.trim() || undefined,
+    isEncrypted: input.isEncrypted,
+    isDirect: false,
+    visibility: isPublic ? new RoomVisibility.Public() : new RoomVisibility.Private(),
+    preset: isPublic ? RoomPreset.PublicChat : RoomPreset.PrivateChat,
+    invite: invite.length ? invite : undefined,
+    avatar: undefined,
+    powerLevelContentOverride: undefined,
+    joinRuleOverride,
+    historyVisibilityOverride: undefined,
+    canonicalAlias: input.alias?.trim() || undefined,
+  };
+  const roomId = await session.client.createRoom(params);
+
+  if (input.parentSpaceId) {
+    await addChildToSpace(session, input.parentSpaceId, roomId).catch(() => {});
+  }
+  return roomId;
+}
+
+/**
+ * Create an Element-style video room. FFI `createRoom` can't set
+ * `creation_content.type`, so we POST /createRoom directly (same escape hatch as
+ * createSpace).
+ */
+export async function createVideoRoom(
+  session: MatrixSession,
+  input: NewRoomInput,
+): Promise<string | undefined> {
+  const isPublic = input.visibility === "public";
+  const body: Record<string, unknown> = {
+    name: input.name.trim() || undefined,
+    topic: input.topic?.trim() || undefined,
+    preset: isPublic ? "public_chat" : "private_chat",
+    visibility: isPublic ? "public" : "private",
+    creation_content: { type: "io.element.video" },
+  };
+  if (input.parentSpaceId && !isPublic) {
+    body.initial_state = [
+      {
+        type: "m.room.join_rules",
+        state_key: "",
+        content: {
+          join_rule: "restricted",
+          allow: [{ type: "m.room_membership", room_id: input.parentSpaceId }],
+        },
+      },
+    ];
+  }
+  const json = await restPost(session, "_matrix/client/v3/createRoom", body);
+  const roomId = json?.room_id;
+  if (roomId && input.parentSpaceId) {
+    await addChildToSpace(session, input.parentSpaceId, roomId).catch(() => {});
+  }
+  return roomId;
+}
+
+/**
+ * Create a space. FFI `CreateRoomParameters` has no `isSpace` in this build, so
+ * we POST /createRoom directly with `creation_content.type = m.space` (the same
+ * REST escape hatch used for video rooms).
+ */
+export async function createSpace(
+  session: MatrixSession,
+  input: NewSpaceInput,
+): Promise<string | undefined> {
+  const isPublic = input.visibility === "public";
+  const body = {
+    name: input.name.trim() || undefined,
+    topic: input.topic?.trim() || undefined,
+    preset: isPublic ? "public_chat" : "private_chat",
+    visibility: isPublic ? "public" : "private",
+    invite: (input.invite ?? []).filter(Boolean),
+    creation_content: { type: "m.space" },
+    power_level_content_override: { events_default: 100 },
+  };
+  const json = await restPost(session, "_matrix/client/v3/createRoom", body);
+  return json?.room_id;
+}
+
+/** Join a room by #alias or !id (optionally with via server hints). */
+export async function joinByAddress(
+  session: MatrixSession,
+  address: string,
+  via: string[] = [],
+): Promise<string> {
+  const room = await session.client.joinRoomByIdOrAlias(address.trim(), via);
+  return room.id();
+}
+
+/**
+ * Add a child room/space to a parent space via the SpaceService
+ * (`addChildToSpace(childId, spaceId)`). Falls back to a REST PUT of the
+ * `m.space.child` state event when the SpaceService is unavailable (this build's
+ * Room has no typed raw state-event send).
+ */
+async function addChildToSpace(
+  session: MatrixSession,
+  spaceId: string,
+  childId: string,
+): Promise<void> {
+  const spaces = session.spaceService as
+    | { addChildToSpace?: (childId: string, spaceId: string) => Promise<void> }
+    | undefined;
+  if (spaces?.addChildToSpace) {
+    await spaces.addChildToSpace(childId, spaceId);
+    return;
+  }
+  const via = [session.ownServerName].filter(Boolean);
+  await session.restPut(
+    `_matrix/client/v3/rooms/${encodeURIComponent(spaceId)}/state/m.space.child/${encodeURIComponent(childId)}`,
+    { via },
+  );
+}
+
+// A small POST helper (MatrixSession only exposes GET/PUT).
+async function restPost(
+  session: MatrixSession,
+  path: string,
+  body: unknown,
+): Promise<any | undefined> {
+  const base = await session.apiBase();
+  if (!base) return undefined;
+  const token = session.session()?.accessToken;
+  try {
+    const res = await fetch(`${base.replace(/\/$/, "")}/${path.replace(/^\//, "")}`, {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return undefined;
+    return await res.json();
+  } catch {
+    return undefined;
+  }
+}
+
+// Re-export the two ids so callers know both the getDmRoom fast-path and create.
+export { getDmRoomSafe };

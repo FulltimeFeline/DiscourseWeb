@@ -1,0 +1,884 @@
+/* Settings / Room-settings surface. CSS variables only (theme.css). */
+
+.dm-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+/* --- generic modal (room settings, profile) ------------------------------ */
+.dm-modal {
+  width: min(560px, 100%);
+  max-height: 88vh;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sheet);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.dm-modal--wide {
+  width: min(760px, 100%);
+}
+.dm-modal__head,
+.dm-settings__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--separator);
+}
+.dm-modal__head h2,
+.dm-settings__head h2 {
+  font-size: calc(16px * var(--font-scale));
+  font-weight: 600;
+  margin: 0;
+}
+.dm-modal__body {
+  overflow-y: auto;
+  padding: 16px 18px;
+}
+.dm-modal__foot {
+  border-top: 1px solid var(--separator);
+  padding: 12px 18px;
+}
+
+.dm-iconbtn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+}
+.dm-iconbtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* --- settings shell ------------------------------------------------------ */
+.dm-settings {
+  width: min(860px, 100%);
+  height: min(560px, 88vh);
+  background: var(--bg-app);
+  color: var(--text-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sheet);
+  display: flex;
+  overflow: hidden;
+}
+.dm-settings__tabs {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--separator);
+  padding: 12px 8px;
+  overflow-y: auto;
+}
+.dm-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: calc(14px * var(--font-scale));
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+}
+.dm-tab:hover {
+  background: var(--bg-hover);
+}
+.dm-tab--on {
+  background: var(--bg-active);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.dm-tab__icon {
+  font-size: 15px;
+}
+.dm-tab--h {
+  width: auto;
+}
+.dm-settings__detail {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.dm-settings__scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 22px;
+}
+
+/* --- sections & rows ----------------------------------------------------- */
+.dm-section {
+  margin-bottom: 24px;
+}
+.dm-section__title {
+  font-size: calc(12px * var(--font-scale));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  margin: 0 0 8px;
+}
+.dm-section__body {
+  background: var(--bg-elevated);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  padding: 4px 14px;
+}
+.dm-section__foot {
+  font-size: calc(12px * var(--font-scale));
+  color: var(--text-tertiary);
+  margin: 6px 2px 0;
+}
+.dm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--separator);
+}
+.dm-row:last-child {
+  border-bottom: none;
+}
+.dm-row__labels {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.dm-row__label {
+  font-size: calc(14px * var(--font-scale));
+  color: var(--text-primary);
+}
+.dm-row__hint {
+  font-size: calc(12px * var(--font-scale));
+  color: var(--text-tertiary);
+}
+.dm-row__control {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* --- controls ------------------------------------------------------------ */
+.dm-input {
+  background: var(--bg-input);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 7px 10px;
+  font-size: calc(14px * var(--font-scale));
+  font-family: var(--font-ui);
+  min-width: 180px;
+}
+.dm-input--area {
+  min-width: 260px;
+  resize: vertical;
+}
+.dm-input:disabled {
+  opacity: 0.5;
+}
+
+.dm-toggle {
+  width: 42px;
+  height: 25px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-input);
+  border: 1px solid var(--separator);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.dm-toggle--on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.dm-toggle__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+.dm-toggle--on .dm-toggle__knob {
+  transform: translateX(17px);
+}
+.dm-toggle:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.dm-segmented {
+  display: inline-flex;
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.dm-seg {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 5px 10px;
+  border-radius: calc(var(--radius-sm) - 2px);
+  font-size: calc(13px * var(--font-scale));
+  cursor: pointer;
+}
+.dm-seg--on {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+.dm-seg:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.dm-btn {
+  border: 1px solid var(--separator);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: calc(13px * var(--font-scale));
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dm-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.dm-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+.dm-btn--destructive {
+  color: var(--unread-mention);
+  border-color: color-mix(in srgb, var(--unread-mention) 40%, transparent);
+}
+.dm-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.dm-swatches {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  max-width: 320px;
+}
+.dm-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+.dm-swatch--on {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--bg-elevated), 0 0 0 4px var(--accent);
+}
+
+.dm-preview {
+  color: var(--text-secondary);
+  padding: 8px 0 4px;
+}
+
+/* --- account tab --------------------------------------------------------- */
+.dm-banner-edit {
+  margin-bottom: 16px;
+}
+.dm-banner-edit__img {
+  height: 96px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(120deg, var(--accent), var(--bg-input));
+  background-size: cover;
+  background-position: center;
+}
+.dm-banner-edit__actions,
+.dm-avatar-edit__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.dm-avatar-edit {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.dm-avatar-edit__img {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.dm-avatar-edit__img--square {
+  border-radius: var(--radius-md);
+  width: 72px;
+  height: 72px;
+}
+
+.dm-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dm-prefix {
+  color: var(--text-tertiary);
+}
+.dm-link-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--separator);
+}
+.dm-link-row .dm-input {
+  min-width: 0;
+}
+
+.dm-save {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dm-msg {
+  font-size: calc(13px * var(--font-scale));
+}
+.dm-msg--ok {
+  color: #22c55e;
+}
+.dm-msg--err {
+  color: var(--unread-mention);
+}
+
+.dm-info {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--separator);
+  font-size: calc(13px * var(--font-scale));
+}
+.dm-info:last-child {
+  border-bottom: none;
+}
+.dm-info__label {
+  color: var(--text-tertiary);
+}
+.dm-info__value {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  user-select: text;
+  text-align: right;
+  word-break: break-all;
+}
+.dm-mono {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+/* --- accounts ------------------------------------------------------------ */
+.dm-account-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 4px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--separator);
+  cursor: pointer;
+  text-align: left;
+}
+.dm-account-row--active {
+  color: var(--text-primary);
+}
+.dm-account-row__avatar,
+.dm-settings-btn__avatar,
+.dm-profile__link-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.dm-account-row__meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.dm-account-row__name {
+  color: var(--text-primary);
+  font-size: calc(14px * var(--font-scale));
+}
+.dm-account-row__id {
+  color: var(--text-tertiary);
+  font-size: calc(12px * var(--font-scale));
+  word-break: break-all;
+}
+.dm-check {
+  color: var(--accent);
+}
+
+/* --- about --------------------------------------------------------------- */
+.dm-about {
+  text-align: center;
+  padding: 16px;
+}
+.dm-about__icon {
+  font-size: 48px;
+}
+.dm-about__by {
+  color: var(--text-tertiary);
+}
+.dm-about__links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+.dm-about__links a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* --- room settings ------------------------------------------------------- */
+.dm-roomsettings {
+  display: flex;
+  flex-direction: column;
+}
+.dm-roomsettings__tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--separator);
+  margin-bottom: 16px;
+}
+.dm-roomsettings__body {
+  min-height: 200px;
+}
+.dm-locked {
+  color: #22c55e;
+  padding: 6px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dm-muted {
+  color: var(--text-tertiary);
+  padding: 6px 0;
+}
+.dm-members {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.dm-member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--separator);
+}
+.dm-member__name {
+  color: var(--text-primary);
+  font-size: calc(14px * var(--font-scale));
+}
+.dm-member__id {
+  color: var(--text-tertiary);
+  font-size: calc(12px * var(--font-scale));
+  flex: 1;
+  word-break: break-all;
+}
+.dm-member__actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* --- loading / spinner --------------------------------------------------- */
+.dm-loading {
+  display: flex;
+  justify-content: center;
+  padding: 48px;
+}
+.dm-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: dm-spin 0.7s linear infinite;
+  display: inline-block;
+}
+.dm-spinner--lg {
+  width: 28px;
+  height: 28px;
+  color: var(--text-tertiary);
+}
+@keyframes dm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+[data-reduce-motion="true"] .dm-spinner {
+  animation-duration: 1.6s;
+}
+
+.dm-empty {
+  color: var(--text-tertiary);
+  padding: 24px;
+  text-align: center;
+}
+
+/* --- settings launcher button -------------------------------------------- */
+/* The account avatar with a small settings-gear badge overlaid on it (not a
+   gear alongside), matching the native rail. */
+.dm-settings-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 28%; /* big squircle settings icon (matches the space icons) */
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, transform 0.12s;
+}
+.dm-settings-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+.dm-settings-btn__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  background-size: cover;
+  background-position: center;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dm-settings-btn:hover {
+  transform: translateY(-1px);
+}
+.dm-settings-btn__gear {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--bg-elevated-2);
+  border: 2px solid var(--bg-rail);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dm-settings-btn__gear svg {
+  width: 11px;
+  height: 11px;
+}
+.dm-settings-btn:hover .dm-settings-btn__gear {
+  color: var(--text-primary);
+}
+
+/* --- account menu (rail avatar popover) ---------------------------------- */
+.dm-acct {
+  position: relative;
+}
+.dm-acct__menu {
+  /* Fixed (not absolute) so it escapes the rail's overflow:hidden clipping. */
+  position: fixed;
+  bottom: 12px;
+  left: 74px;
+  width: 240px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sheet);
+  padding: 6px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.dm-acct__row,
+.dm-acct__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  text-align: left;
+}
+.dm-acct__row:hover,
+.dm-acct__item:hover {
+  background: var(--bg-hover);
+}
+.dm-acct__row--active {
+  color: var(--accent);
+}
+.dm-acct__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dm-acct__item--danger {
+  color: var(--unread-mention);
+}
+.dm-acct__sep {
+  height: 1px;
+  background: var(--separator);
+  margin: 4px 2px;
+}
+
+/* --- Room emote / sticker pack editor ------------------------------------ */
+.emote-editor__thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: contain;
+  background: var(--bg-input);
+  flex: none;
+}
+.emote-editor__thumb--empty {
+  display: inline-block;
+}
+.emote-editor__error {
+  color: var(--unread-mention);
+}
+.emote-editor__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.emote-editor__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+}
+.emote-editor__meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.emote-editor__code {
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.emote-editor__usage {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.emote-editor__remove {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  flex: none;
+}
+.emote-editor__remove:hover {
+  color: var(--unread-mention);
+  background: var(--bg-hover);
+}
+.emote-editor__remove:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Poll history (room settings → Polls tab). */
+.dm-polls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dm-polls__item {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+}
+
+/* --- Role labels editor (color swatches + emoji picker) ------------------ */
+.dm-rolelabel {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--separator);
+}
+.dm-rolelabel:last-of-type { border-bottom: none; }
+.dm-rolelabel__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dm-rolelabel__lvl {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  min-width: 56px;
+}
+.dm-rolelabel__icon {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border: 1px solid var(--separator);
+  border-radius: 8px;
+  background: var(--bg-input);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+.dm-rolelabel__mxc { width: 20px; height: 20px; border-radius: 4px; object-fit: contain; }
+.dm-rolelabel__swatches {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 0 64px;
+  flex-wrap: wrap;
+}
+.dm-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.dm-swatch--on { border-color: var(--text-primary); }
+.dm-swatch--none {
+  background: var(--bg-input);
+  position: relative;
+}
+.dm-swatch--none::after {
+  content: "";
+  position: absolute;
+  inset: 8px 2px;
+  border-top: 2px solid var(--unread-mention);
+  transform: rotate(-45deg);
+  transform-origin: center;
+}
+.dm-rolelabel__picker {
+  margin: 8px 0 0 64px;
+  max-width: 320px;
+}
+
+/* Social-link icon picker. */
+.dm-link-icon {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border: 1px solid var(--separator);
+  border-radius: 8px;
+  background: var(--bg-input);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+.dm-link-icon__mxc { width: 20px; height: 20px; border-radius: 4px; object-fit: contain; }
+.dm-link-picker {
+  flex-basis: 100%;
+  margin-top: 6px;
+  max-width: 320px;
+}
+
+/* --- Personal sticker maker ---------------------------------------------- */
+.sticker-maker__thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: var(--bg-input);
+  flex: none;
+}
+.sticker-maker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+}
+.sticker-maker__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+}
+.sticker-maker__code {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

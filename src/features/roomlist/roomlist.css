@@ -1,0 +1,739 @@
+/* Room list + spaces rail. Colors come only from theme.css variables. */
+
+/* ---- Sidebar column -------------------------------------------------- */
+
+.rl {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.rl__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 12px 8px;
+  flex-shrink: 0;
+}
+.rl__title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rl__title--menu {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border-radius: var(--radius-sm);
+  min-width: 0;
+}
+.rl__title--menu:hover {
+  background: var(--bg-hover);
+}
+.rl__title--menu > :first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rl__space-banner {
+  display: block;
+  width: calc(100% - 16px);
+  height: 96px;
+  margin: 8px 8px 4px;
+  border: 0;
+  padding: 0;
+  border-radius: var(--radius-md);
+  background-size: cover;
+  background-position: center;
+  background-color: var(--bg-elevated);
+  cursor: pointer;
+}
+.rl__action-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--unread-mention) 18%, transparent);
+  color: var(--text-primary);
+  font-size: 12.5px;
+}
+.rl__banner {
+  border: 0;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.rl__new {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rl__new:hover {
+  background: var(--bg-elevated-2);
+  color: var(--text-primary);
+}
+
+.rl__search {
+  padding: 0 12px 10px;
+  flex-shrink: 0;
+}
+.rl__search input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 0;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border-radius: var(--radius-pill);
+  padding: 9px 12px 9px 34px;
+  font-size: 14px;
+  font-family: var(--font-ui);
+  /* Inline magnifier glyph. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236a6a74' stroke-width='2.2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><line x1='21' y1='21' x2='16.65' y2='16.65'/></svg>");
+  background-repeat: no-repeat;
+  background-position: 11px center;
+}
+.rl__search input::placeholder {
+  color: var(--text-tertiary);
+}
+.rl__search input:focus {
+  outline: none;
+  box-shadow: 0 0 0 1.5px var(--accent-soft);
+}
+
+.rl__status,
+.rl__empty {
+  padding: 24px 16px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  text-align: center;
+}
+.rl__empty-title {
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.rl__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.rl__section {
+  padding: 4px 0;
+}
+.rl__section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  padding: 6px 14px 2px;
+}
+
+.rl__list {
+  display: flex;
+  flex-direction: column;
+}
+.rl__list--short {
+  flex: 0 0 auto;
+}
+/* Virtualized list needs a bounded height to scroll internally. */
+.rl__scroll > .rl__list:not(.rl__list--short) {
+  flex: 1;
+  min-height: 240px;
+}
+
+.rl-jump {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  padding: 8px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.rl-jump:hover {
+  background: var(--bg-hover);
+}
+
+/* ---- Room row -------------------------------------------------------- */
+
+.rl-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 16px);
+  box-sizing: border-box;
+  margin: 1px 8px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+.rl-row:hover {
+  background: var(--bg-hover);
+}
+.rl-row--selected,
+.rl-row--selected:hover {
+  background: var(--bg-active);
+}
+/* Lift the encryption/glyph icon out of tertiary grey on the selected row so it
+   stays legible against the active background. */
+.rl-row--selected .rl-glyph {
+  color: var(--text-secondary);
+}
+/* Narrow / single-column (iOS) layout: the selected row is a solid accent fill
+   with white text, matching the native compact layout. */
+@media (max-width: 760px) {
+  .rl-row--selected,
+  .rl-row--selected:hover {
+    background: color-mix(in srgb, var(--accent) 85%, transparent);
+  }
+  .rl-row--selected .rl-row__name {
+    color: #fff;
+  }
+  .rl-row--selected .rl-row__preview,
+  .rl-row--selected .rl-row__time {
+    color: rgba(255, 255, 255, 0.8);
+  }
+  .rl-row--selected .rl-glyph {
+    color: rgba(255, 255, 255, 0.85);
+  }
+}
+
+.rl-row__avatar {
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.rl-presence {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-sidebar);
+}
+.rl-presence--online {
+  background: #22c55e;
+}
+.rl-presence--unavailable {
+  background: #f59e0b;
+}
+.rl-presence--offline {
+  background: var(--text-tertiary);
+}
+
+.rl-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.rl-row__top {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+.rl-row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: font-weight 0.15s ease-out;
+}
+.rl-row__name--unread {
+  font-weight: 600;
+}
+.rl-row__time {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+.rl-glyph {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+.rl-glyph--call {
+  color: #22c55e;
+}
+
+.rl-row__bottom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.rl-row__preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+}
+.rl-row__preview--unread {
+  color: var(--text-secondary);
+}
+
+.rl-badge {
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.rl-badge--mention {
+  background: var(--unread-mention);
+}
+
+/* ---- Call participants strip ---------------------------------------- */
+
+.rl-callstrip {
+  display: flex;
+  align-items: center;
+  margin: 2px 0;
+}
+.rl-callstrip__avatar {
+  display: inline-flex;
+  border-radius: 50%;
+  /* Ring matches native Circle().stroke(platformWindowBackground, 1.5). */
+  box-shadow: 0 0 0 1.5px var(--bg-sidebar);
+}
+.rl-callstrip__more {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-left: 4px;
+}
+
+/* ---- Invite row ------------------------------------------------------ */
+
+.rl-invite,
+.rl-dir {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+}
+.rl-invite__body,
+.rl-dir__body {
+  flex: 1;
+  min-width: 0;
+}
+.rl-invite__top,
+.rl-dir__top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.rl-invite__name,
+.rl-dir__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rl-invite__badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: var(--bg-active);
+  color: var(--text-secondary);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+}
+.rl-invite__sub,
+.rl-dir__sub {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rl-invite__actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.rl-invite__decline,
+.rl-invite__accept {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 0;
+  cursor: pointer;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.rl-invite__decline {
+  background: var(--unread-mention);
+  color: #fff;
+}
+.rl-invite__accept {
+  background: #22c55e;
+  color: #fff;
+}
+.rl-invite__decline:disabled,
+.rl-invite__accept:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.rl-dir__join {
+  flex-shrink: 0;
+  border: 0;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rl-dir__join:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ---- Space Home sheet ------------------------------------------------ */
+
+.rl-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.rl-sheet {
+  position: relative;
+  width: 460px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sheet);
+  padding: 28px 24px 24px;
+}
+.rl-sheet__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: 0;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.rl-sheet__banner {
+  height: 150px;
+  margin: 0 0 16px;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--bg-input);
+}
+.rl-sheet__head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.rl-sheet__name {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  text-align: left;
+  line-height: 1.2;
+}
+.rl-sheet__bio {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+.rl-sheet__bio p {
+  margin: 0 0 8px;
+}
+.rl-sheet__bio p:last-child {
+  margin-bottom: 0;
+}
+.rl-sheet__bio--empty {
+  color: var(--text-secondary);
+}
+
+/* ---- Spaces rail ----------------------------------------------------- */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 10px;
+}
+.rail__list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.rail__divider {
+  width: 32px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(150, 150, 160, 0.55);
+  margin: 0;
+}
+
+.rail__slot {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rail__btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 28%; /* squircle (macOS/iOS app-icon shape) */
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.rail__btn:hover {
+  transform: translateY(-1px);
+}
+/* Space avatars are squircles too (override RoomAvatar's inline circle). */
+.rail__btn .rl-avatar,
+.rail__btn .rl-avatar--initials {
+  border-radius: 26% !important;
+}
+/* Native selection is the flush left bar (.rail__pill), not a ring on the
+   avatar — so the selected button keeps its plain circular form. */
+.rail__home {
+  font-size: 19px;
+  color: var(--accent-contrast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rail__btn:has(.rail__home),
+.rail__slot:first-child .rail__btn {
+  background: var(--accent-gradient);
+}
+
+/* Leading selection bar / unread bar — flush to the rail's left edge, square
+   left corners + rounded right (the Discord/native bar). The slot is 40px in a
+   64px rail, so -12px reaches the rail edge. */
+.rail__pill {
+  position: absolute;
+  left: -6px;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: #fff;
+  box-shadow: 1px 0 2px rgba(0, 0, 0, 0.45);
+  transition: height 0.2s ease;
+}
+.rail__pill--selected {
+  height: 30px;
+}
+/* Unread = a short bar (distinct from the tall selection bar). */
+.rail__pill--unread {
+  height: 10px;
+}
+
+/* Red mention dot, bottom-trailing. */
+.rail__mention {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--unread-mention);
+  border: 2px solid var(--bg-rail);
+}
+
+.rail__add {
+  width: 40px;
+  height: 40px;
+  border-radius: 28%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-tertiary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rail__add:hover {
+  color: var(--accent);
+  background: var(--bg-elevated-2);
+}
+
+.rl-avatar {
+  display: block;
+}
+
+/* ---- Context menu (room row + space rail) ---------------------------- */
+
+.rl-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 200px;
+  padding: 6px;
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--separator);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sheet);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-ui);
+}
+.rl-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  line-height: 1.2;
+}
+.rl-menu__item:hover {
+  background: var(--bg-hover);
+}
+.rl-menu__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  flex: 0 0 auto;
+}
+.rl-menu__label {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rl-menu__item--danger,
+.rl-menu__item--danger .rl-menu__icon {
+  color: var(--unread-mention);
+}
+.rl-menu__item--danger:hover {
+  background: color-mix(in srgb, var(--unread-mention) 12%, transparent);
+}
+
+/* Space banner edit controls (SpaceHomeView, admin-only). */
+.rl-sheet__banner-actions {
+  display: flex;
+  gap: 8px;
+  margin: 8px 12px 0;
+}
+.rl-sheet__banner-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rl-sheet__banner-actions button:hover:not(:disabled) {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+.rl-sheet__banner-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

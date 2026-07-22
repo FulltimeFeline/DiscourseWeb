@@ -1,0 +1,112 @@
+.create-poll {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 380px;
+  max-width: 100%;
+  padding: 16px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  box-sizing: border-box;
+}
+
+.create-poll__title {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.create-poll__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  margin-top: 6px;
+}
+
+.create-poll__input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.create-poll__options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.create-poll__option {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.create-poll__remove {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 6px;
+}
+.create-poll__remove:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.create-poll__add {
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 4px 0;
+}
+
+.create-poll__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.create-poll__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.create-poll__cancel,
+.create-poll__create {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+.create-poll__cancel {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+.create-poll__create {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.create-poll__create:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

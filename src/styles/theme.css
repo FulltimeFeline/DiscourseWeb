@@ -1,0 +1,85 @@
+/* Design tokens, tuned to match the native macOS/iOS Discourse app: near-black
+   surfaces, a vivid purple-magenta accent, gradient circular avatars, generous
+   rounding. Feature code reads these variables only — never hard-coded colours. */
+
+:root {
+  --accent: #c65cf5;
+  --accent-strong: #b13ee6;
+  --accent-soft: rgba(198, 92, 245, 0.16);
+  --accent-contrast: #ffffff;
+  /* Gradient used for the Home glyph + accent fills. */
+  /* Derived from the SELECTED accent so it follows the accent preference. */
+  --accent-gradient: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--accent) 85%, white) 0%,
+    var(--accent) 55%,
+    color-mix(in srgb, var(--accent) 80%, black) 100%
+  );
+
+  --font-scale: 1;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+    system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas,
+    monospace;
+
+  --row-padding-y: 7px;
+  --row-gap: 2px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
+
+  --unread-mention: #ff453a;
+  --presence-online: #34c759;
+}
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  /* Surfaces carry a faint accent tint (like macOS tinting dark chrome with the
+     accent). Follows the chosen --accent, so changing the accent re-tints them. */
+  --bg-app: color-mix(in srgb, #0b0b0d 94%, var(--accent) 6%);
+  --bg-rail: color-mix(in srgb, #060608 94%, var(--accent) 6%);
+  --bg-sidebar: color-mix(in srgb, #0e0e11 94%, var(--accent) 6%);
+  --bg-elevated: color-mix(in srgb, #1a1a1e 93%, var(--accent) 7%);
+  --bg-elevated-2: color-mix(in srgb, #232329 93%, var(--accent) 7%);
+  --bg-input: color-mix(in srgb, #1c1c21 93%, var(--accent) 7%);
+  --bg-hover: rgba(255, 255, 255, 0.045);
+  --bg-active: rgba(255, 255, 255, 0.08);
+  --bg-bubble-in: #1c1c21;
+  --bg-bubble-out: var(--accent);
+
+  --text-primary: #f4f4f6;
+  --text-secondary: #9a9aa4;
+  --text-tertiary: #6a6a74;
+  --text-on-accent: #ffffff;
+
+  --separator: rgba(255, 255, 255, 0.07);
+  --scrim: rgba(0, 0, 0, 0.6);
+  --shadow-sheet: 0 24px 70px rgba(0, 0, 0, 0.6);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  /* Faint accent tint on light surfaces too. */
+  --bg-app: color-mix(in srgb, #ffffff 96%, var(--accent) 4%);
+  --bg-rail: color-mix(in srgb, #e9e9ee 95%, var(--accent) 5%);
+  --bg-sidebar: color-mix(in srgb, #f5f5f7 95%, var(--accent) 5%);
+  --bg-elevated: color-mix(in srgb, #ffffff 96%, var(--accent) 4%);
+  --bg-elevated-2: color-mix(in srgb, #f0f0f3 95%, var(--accent) 5%);
+  --bg-input: color-mix(in srgb, #ececef 95%, var(--accent) 5%);
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-active: rgba(0, 0, 0, 0.075);
+  --bg-bubble-in: #ececef;
+  --bg-bubble-out: var(--accent);
+
+  --text-primary: #1c1c1e;
+  --text-secondary: #55555c;
+  --text-tertiary: #8e8e96;
+  --text-on-accent: #ffffff;
+
+  --separator: rgba(0, 0, 0, 0.1);
+  --scrim: rgba(0, 0, 0, 0.35);
+  --shadow-sheet: 0 24px 70px rgba(0, 0, 0, 0.25);
+}

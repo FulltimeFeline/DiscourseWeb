@@ -1,0 +1,234 @@
+/* New-chat / new-room / new-space / join modal. Vars from styles/theme.css. */
+
+.cmp-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  background: var(--scrim);
+  backdrop-filter: blur(2px);
+}
+
+.cmp-panel {
+  width: min(480px, calc(100vw - 32px));
+  max-height: 76vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elevated);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sheet);
+  overflow: hidden;
+}
+
+.cmp-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 8px 8px 0;
+  border-bottom: 1px solid var(--separator);
+}
+
+.cmp-tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  cursor: pointer;
+}
+
+.cmp-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.cmp-tab--active {
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.cmp-body {
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cmp-body form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cmp-input {
+  appearance: none;
+  width: 100%;
+  border: 1px solid var(--separator);
+  outline: none;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+}
+
+.cmp-input:focus {
+  border-color: var(--accent);
+}
+
+.cmp-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.cmp-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.cmp-field select {
+  appearance: auto;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.cmp-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.cmp-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.cmp-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.cmp-user:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.cmp-user:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cmp-user-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cmp-user-name {
+  color: var(--text-primary);
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmp-user-sub {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmp-hint {
+  color: var(--text-tertiary);
+  font-size: 13px;
+  padding: 6px 4px;
+}
+
+.cmp-error {
+  color: var(--unread-mention, #e5484d);
+  font-size: 13px;
+}
+
+.cmp-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cmp-btn {
+  appearance: none;
+  border: 1px solid var(--separator);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.cmp-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cmp-btn--primary {
+  background: var(--accent);
+  color: var(--text-on-accent, #fff);
+  border-color: transparent;
+}
+
+/* Invite sheet header (reuses cmp-panel/cmp-user/cmp-results). */
+.cmp-invite-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.cmp-invite-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+.cmp-invite-close {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+}
+.cmp-user .cmp-btn { margin-left: auto; }

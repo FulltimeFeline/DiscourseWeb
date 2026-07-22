@@ -1,0 +1,12 @@
+.emote-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.emote-text__img {
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 1px;
+}
+.emote-text__img--jumbo {
+  margin: 0 2px;
+}

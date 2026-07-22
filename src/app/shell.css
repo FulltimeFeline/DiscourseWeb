@@ -1,0 +1,163 @@
+.shell {
+  flex: 1;
+  display: grid;
+  /* Rail fixed; the room list may shrink a little; the chat keeps a sensible
+     minimum so it never squishes to nothing when the window narrows (the left
+     sidebars stay put). */
+  grid-template-columns: 74px minmax(220px, 300px) minmax(460px, 1fr);
+  min-height: 0;
+  background: var(--bg-app);
+}
+.shell__rail {
+  /* Floating macOS-style dock: a rounded glass panel detached from the edges
+     (fill/blur come from glass.css). */
+  margin: 12px 8px;
+  /* Concentric with the squircle icons: 9px gap each side + ~11px icon radius. */
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.shell__rail > :first-child {
+  flex: 1;
+  overflow-y: auto;
+}
+.shell__rail-footer {
+  padding: 8px;
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid var(--separator);
+}
+.shell__sidebar {
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--separator);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.shell__room {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.shell__empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+}
+.shell__empty-glyph {
+  font-size: 40px;
+  opacity: 0.7;
+}
+
+/* The left sidebars (spaces rail + room list) stay put at every width —
+   resizing never collapses them. The RIGHT details panel is the only
+   collapsible one (its collapse breakpoint lives in details.css, keyed to
+   keeping the media a fixed size). */
+.room-header__back {
+  display: none;
+}
+
+/* Full-screen call overlay (Element Call iframe). */
+.shell__call-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #000;
+  display: flex;
+}
+.shell__call-overlay > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Add-account overlay (renders the login flow over the shell). */
+.shell__addaccount {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--bg-app);
+  display: flex;
+}
+.shell__addaccount > * {
+  flex: 1;
+  min-width: 0;
+}
+.shell__addaccount-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.shell__addaccount-close:hover {
+  color: var(--text-primary);
+}
+
+/* Connection status banner (sync offline / reconnecting). */
+.shell__netbanner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 90;
+  text-align: center;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent-strong);
+}
+.shell__netbanner--offline {
+  background: #b4801f;
+}
+
+/* "This session isn't verified" banner (shown after dismissing the prompt). */
+.shell__verifybanner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent-strong, #b13ee6);
+}
+.shell__verifybanner span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.shell__verifybanner button {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+.shell__verifybanner button:hover {
+  background: rgba(255, 255, 255, 0.28);
+}

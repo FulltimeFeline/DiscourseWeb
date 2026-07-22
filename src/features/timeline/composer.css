@@ -1,0 +1,416 @@
+/* Composer bar. Uses theme.css variables only. */
+
+.dc-composer {
+  /* Floating, transparent container; the input pill is the glass surface. */
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 10px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  background: transparent;
+}
+.dc-composer.drag {
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+}
+.dc-composer.drag {
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+}
+
+/* --- Banners / errors --- */
+.dc-banner {
+  align-self: flex-start; /* self-sized bubble, not a full-width bar */
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px 5px 12px;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  /* Glass bubble above the composer (like the native reply/typing tags). */
+  background: rgba(60, 62, 72, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .dc-banner {
+    background: rgba(60, 62, 72, 0.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.5);
+    backdrop-filter: blur(16px) saturate(1.5);
+  }
+}
+.dc-banner-x,
+.dc-chip-x,
+.dc-rec-cancel {
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+.dc-banner-x:hover {
+  color: var(--text-primary);
+}
+.dc-error {
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: rgba(244, 63, 94, 0.12);
+  color: var(--unread-mention);
+  font-size: 0.82rem;
+}
+
+/* --- Chips --- */
+.dc-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.dc-chip {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-elevated);
+  border: 1px solid var(--separator);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dc-chip.failed {
+  border-color: var(--unread-mention);
+}
+.dc-chip img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dc-chip-doc {
+  font-size: 26px;
+}
+.dc-chip-spin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.dc-chip-x {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+}
+
+/* --- Input row: one elevated rounded pill holding the buttons + text --- */
+.dc-input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 22px;
+  padding: 3px 6px;
+  /* Faked liquid glass: translucent frosted fill + bright top rim + soft shadow.
+     Falls back to a solid pill where backdrop-filter is unsupported. */
+  background: var(--bg-input);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.16),
+    0 8px 24px rgba(0, 0, 0, 0.4);
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .dc-input-row {
+    background: rgba(60, 62, 72, 0.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.6);
+    backdrop-filter: blur(18px) saturate(1.6);
+  }
+}
+.dc-textarea {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  padding: 5px 6px;
+  font: inherit;
+  font-size: calc(1rem * var(--font-scale, 1));
+  line-height: 20px;
+  max-height: 180px;
+}
+.dc-textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.dc-attach-btn,
+.dc-send-btn,
+.dc-mic-btn,
+.dc-emoji-btn {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+/* Native attach/mic/emoji are bare circle-fill SF-Symbol glyphs — no button
+   chrome; the icon itself is the affordance. Only Send keeps the filled circle. */
+.dc-attach-btn,
+.dc-mic-btn,
+.dc-emoji-btn {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.dc-attach-btn:hover,
+.dc-mic-btn:hover,
+.dc-emoji-btn:hover {
+  color: var(--text-primary);
+}
+.dc-send-btn {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.dc-send-btn:hover {
+  background: var(--accent-strong);
+}
+
+/* --- Attach menu --- */
+.dc-attach-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.dc-attach-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+}
+.dc-attach-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  min-width: 180px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--separator);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+.dc-attach-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.dc-attach-item:hover {
+  background: var(--bg-hover);
+}
+
+/* --- Emoji / sticker picker popover --- */
+.dc-picker-pop {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  width: min(340px, calc(100vw - 24px));
+  max-height: min(420px, 60vh);
+  overflow: hidden;
+  display: flex;
+  background: var(--bg-elevated);
+  border: 1px solid var(--separator);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.dc-picker-pop > * {
+  flex: 1;
+  min-width: 0;
+}
+/* Anchored to the right-side emoji/sticker trigger. */
+.dc-picker-pop--right {
+  left: auto;
+  right: 0;
+  flex-direction: column;
+}
+.dc-picker-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px 6px 0;
+  flex: 0 0 auto;
+}
+.dc-picker-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: 8px 8px 0 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dc-picker-tab--on {
+  background: var(--bg-elevated-2);
+  color: var(--text-primary);
+}
+.dc-picker-body {
+  /* Content-sized (overrides the base `.dc-picker-pop > *` flex:1, which would
+     otherwise collapse this to height 0 in the column layout and hide the
+     picker — its intrinsic 320/360px height drives the popover height). */
+  flex: 0 0 auto;
+  display: flex;
+  overflow: hidden;
+}
+.dc-picker-body > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* --- Recording --- */
+.dc-recording {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border-radius: var(--radius-lg);
+  padding: 6px 10px;
+}
+.dc-rec-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--unread-mention);
+  animation: dc-pulse 1s ease-in-out infinite;
+}
+.dc-rec-time {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+.dc-rec-wave {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  height: 24px;
+  min-width: 0;
+  overflow: hidden;
+}
+.dc-rec-wave span {
+  flex: 1;
+  min-width: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  align-self: center;
+}
+@keyframes dc-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* --- Autocomplete popup --- */
+.dc-ac-popup {
+  position: absolute;
+  bottom: calc(100% - 2px);
+  left: 12px;
+  right: 12px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sheet);
+  z-index: 20;
+  padding: 4px;
+}
+.dc-ac-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.dc-ac-row.sel {
+  background: var(--bg-active);
+}
+.dc-ac-avatar {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.dc-ac-emoji {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+  flex: 0 0 auto;
+}
+.dc-ac-name {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dc-ac-mxid {
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  margin-left: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 45%;
+  direction: rtl;
+}
+
+/* --- Spinner (shared) --- */
+.dc-spinner.small {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--separator);
+  border-top-color: var(--text-secondary);
+  border-radius: 50%;
+  animation: dc-spin 0.8s linear infinite;
+}
+@keyframes dc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
