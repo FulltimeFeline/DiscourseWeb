@@ -15,3 +15,6 @@ release/
 # Editor / OS
 .DS_Store
 *.log
+
+# TS build cache
+*.tsbuildinfo
