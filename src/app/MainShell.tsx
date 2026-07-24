@@ -8,6 +8,7 @@ import { SidebarView } from "@/features/roomlist/SidebarView";
 import { useRoomListScope, type RoomListScope } from "@/features/roomlist/scope";
 import { RoomPane } from "@/features/timeline/RoomPane";
 import { ModalHost, SettingsButton } from "@/features/settings";
+import { DownloadButton } from "@/features/download/DownloadLinks";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { VerificationManager, useNeedsVerification } from "@/features/verification";
 import { IncomingCallListener, CallView, incomingCallStoreFor, isLocallyActiveCall } from "@/features/call";
@@ -148,6 +149,7 @@ function ShellContent({ app, session }: { app: AppState; session: MatrixSession 
       <aside className="shell__rail">
           <SpacesRail app={app} />
           <div className="shell__rail-footer">
+            <DownloadButton />
             <SettingsButton />
           </div>
         </aside>

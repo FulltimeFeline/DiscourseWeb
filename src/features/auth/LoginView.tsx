@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useViewModel } from "@/core/reactive";
 import type { AppState } from "@/app/AppState";
 import { LoginViewModel } from "./LoginViewModel";
+import { DownloadLinks } from "@/features/download/DownloadLinks";
 import "./login.css";
 
 export function LoginView({ app }: { app: AppState }) {
@@ -117,6 +118,7 @@ export function LoginView({ app }: { app: AppState }) {
           </div>
         )}
       </div>
+      <DownloadLinks />
     </div>
   );
 }

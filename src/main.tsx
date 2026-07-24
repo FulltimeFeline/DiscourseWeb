@@ -31,9 +31,14 @@ if (isMobileDevice()) {
     <div class="mobile-gate">
       <div class="mobile-gate__card">
         <div class="mobile-gate__glyph">🖥️</div>
-        <h1>Discourse isn't ready for mobile yet</h1>
-        <p>The web app is desktop-only for now. Open it on a computer to sign in
-        and chat — a mobile version is on the way.</p>
+        <h1>Discourse isn't ready for mobile web yet</h1>
+        <p>The web app is desktop-only for now — but there are native apps for
+        your phone. Open the web app on a computer, or grab a native build:</p>
+        <div class="mobile-gate__apps">
+          <a href="https://testflight.apple.com/join/85BHSXps" target="_blank" rel="noopener">iOS · TestFlight</a>
+          <a href="https://github.com/FulltimeFeline/DiscourseAndroid/releases/latest" target="_blank" rel="noopener">Android</a>
+          <a href="https://github.com/FulltimeFeline/Discourse/releases/latest" target="_blank" rel="noopener">macOS</a>
+        </div>
       </div>
     </div>`;
   throw new Error("mobile-not-supported"); // halt module init (skip loading wasm)

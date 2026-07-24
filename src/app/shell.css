@@ -25,7 +25,9 @@
 .shell__rail-footer {
   padding: 8px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   border-top: 1px solid var(--separator);
 }
 .shell__sidebar {

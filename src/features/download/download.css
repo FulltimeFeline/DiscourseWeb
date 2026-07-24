@@ -1,0 +1,98 @@
+/* Login-screen / mobile-placeholder link row. */
+.dl-links {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+.dl-links__heading {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.dl-links__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.dl-links__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--bg-elevated);
+  border: 1px solid var(--separator);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 0.12s, background 0.12s;
+}
+.dl-links__item:hover {
+  border-color: var(--accent);
+  background: var(--bg-elevated-2);
+}
+
+/* Rail button (above the settings cog). */
+.dl-btn {
+  display: flex;
+  justify-content: center;
+}
+.dl-settings-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.dl-settings-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Popover, portaled to <body> like the settings menu. */
+.dl-menu {
+  position: fixed;
+  left: 12px;
+  bottom: 96px;
+  z-index: 100;
+  min-width: 190px;
+  padding: 6px;
+  border-radius: var(--radius-md, 12px);
+  background: var(--bg-elevated);
+  border: 1px solid var(--separator);
+  box-shadow: var(--shadow-sheet);
+}
+.dl-menu__heading {
+  padding: 6px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.dl-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 8px);
+  color: var(--text-primary);
+  font-size: 14px;
+  text-decoration: none;
+}
+.dl-menu__item:hover {
+  background: var(--bg-hover);
+}
