@@ -141,7 +141,7 @@
   font-size: 12.5px;
   font-weight: 600;
   color: #fff;
-  background: var(--accent-strong, #b13ee6);
+  background: var(--accent-strong, #7b3be2);
 }
 .shell__verifybanner span {
   display: inline-flex;

@@ -1,17 +1,23 @@
-// The 13 accent swatches. "system" is the app default (`--accent` from
-// theme.css). Selecting one writes the hex into the shared `preferences.accent`,
-// which reflects onto `--accent` live.
+// The accent swatches. "Default" is the app accent (the icon purple baked
+// into theme.css); "System" follows the OS accent via the CSS `AccentColor`
+// keyword and is only offered where the browser supports it. Selecting a
+// swatch writes its value into the shared `preferences.accent`, which
+// reflects onto `--accent` live.
+
+import { DEFAULT_ACCENT, SYSTEM_ACCENT, systemAccentSupported } from "../../core/Preferences";
+
+export { DEFAULT_ACCENT, SYSTEM_ACCENT, systemAccentSupported };
 
 export interface AccentSwatch {
   id: string;
   label: string;
-  /** Hex for the swatch + the value written to preferences; null = app default. */
+  /** Hex (or the SYSTEM_ACCENT sentinel) written to preferences; null = app default. */
   hex: string | null;
 }
 
-// "Default" restores the theme value.
 export const ACCENTS: AccentSwatch[] = [
-  { id: "system", label: "Default", hex: null },
+  { id: "default", label: "Default", hex: null },
+  { id: "system", label: "System", hex: SYSTEM_ACCENT },
   { id: "blue", label: "Blue", hex: "#3b82f6" },
   { id: "indigo", label: "Indigo", hex: "#6366f1" },
   { id: "purple", label: "Purple", hex: "#a855f7" },
@@ -25,7 +31,3 @@ export const ACCENTS: AccentSwatch[] = [
   { id: "brown", label: "Brown", hex: "#a16207" },
   { id: "graphite", label: "Graphite", hex: "#6b7280" },
 ];
-
-/** The default `--accent` from theme.css, used when "Default" is picked. Must
- *  match theme.css so the "Default" swatch isn't a duplicate of "Blue". */
-export const DEFAULT_ACCENT = "#9059f1";

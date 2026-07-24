@@ -8,10 +8,19 @@ import { Store } from "./reactive";
 export type ThemeSetting = "system" | "light" | "dark";
 export type MessageDensity = "comfortable" | "compact";
 
+/** The app accent — the icon purple. Must match `--accent` in theme.css. */
+export const DEFAULT_ACCENT = "#9059f1";
+/** Sentinel stored in `accent` for "follow the OS accent color". */
+export const SYSTEM_ACCENT = "system";
+/** Whether the browser can resolve the OS accent (CSS `AccentColor` keyword). */
+export const systemAccentSupported =
+  typeof CSS !== "undefined" && CSS.supports("color", "AccentColor");
+
 export interface Prefs {
   // Appearance
   theme: ThemeSetting;
-  accent: string; // hex
+  accent: string; // hex, or SYSTEM_ACCENT to follow the OS accent
+  tintedWindow: boolean; // accent-wash the window surfaces (off = plain gray)
   messageDensity: MessageDensity;
   fontScale: number; // 0.85–1.4
   // Chat behaviour
@@ -37,7 +46,8 @@ export interface Prefs {
 
 const DEFAULTS: Prefs = {
   theme: "system",
-  accent: "#c65cf5",
+  accent: DEFAULT_ACCENT,
+  tintedWindow: true,
   messageDensity: "comfortable",
   fontScale: 1,
   sendOnEnter: true,
@@ -66,6 +76,8 @@ function load(): Prefs {
     const prefs = { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Prefs>) };
     // The light theme option is disabled; migrate previously stored values.
     if (prefs.theme === "light") prefs.theme = "dark";
+    // Pre-cat-icon default accent: stored hex meant "Default", follow it.
+    if (prefs.accent === "#c65cf5") prefs.accent = DEFAULT_ACCENT;
     return prefs;
   } catch {
     return { ...DEFAULTS };
@@ -97,7 +109,17 @@ class PreferencesStore extends Store<Prefs> {
     const resolved = p.theme === "system" ? "dark" : p.theme;
     root.setAttribute("data-theme", resolved);
     root.setAttribute("data-density", p.messageDensity);
-    root.style.setProperty("--accent", p.accent);
+    // "system" resolves to the OS accent where the browser exposes it.
+    const accent =
+      p.accent === SYSTEM_ACCENT
+        ? systemAccentSupported
+          ? "AccentColor"
+          : DEFAULT_ACCENT
+        : p.accent;
+    root.style.setProperty("--accent", accent);
+    // Multiplies every color-mix tint amount in theme.css: 1 = accent-washed
+    // surfaces, 0 = plain grays.
+    root.style.setProperty("--tint-on", p.tintedWindow ? "1" : "0");
     root.style.setProperty("--font-scale", String(p.fontScale));
     if (p.messageDensity === "compact") {
       root.style.setProperty("--row-padding-y", "2px");

@@ -4,9 +4,14 @@
 
 :root {
   --accent: #9059f1;
-  --accent-strong: #7b3be2;
-  --accent-soft: rgba(144, 89, 241, 0.16);
+  /* Derived, so they follow whatever accent the user picks (including the
+     System AccentColor keyword, which has no static hex to precompute). */
+  --accent-strong: color-mix(in srgb, var(--accent) 82%, black);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
   --accent-contrast: #ffffff;
+  /* Tinted-window switch: multiplies every surface's accent-mix amount.
+     Preferences sets 0 to fall back to plain grays. */
+  --tint-on: 1;
   /* Gradient used for the Home glyph + accent fills. */
   /* Derived from the SELECTED accent so it follows the accent preference. */
   --accent-gradient: linear-gradient(
@@ -39,12 +44,12 @@
   color-scheme: dark;
   /* Surfaces carry a faint accent tint (like macOS tinting dark chrome with the
      accent). Follows the chosen --accent, so changing the accent re-tints them. */
-  --bg-app: color-mix(in srgb, #0b0b0d 94%, var(--accent) 6%);
-  --bg-rail: color-mix(in srgb, #060608 94%, var(--accent) 6%);
-  --bg-sidebar: color-mix(in srgb, #0e0e11 94%, var(--accent) 6%);
-  --bg-elevated: color-mix(in srgb, #1a1a1e 93%, var(--accent) 7%);
-  --bg-elevated-2: color-mix(in srgb, #232329 93%, var(--accent) 7%);
-  --bg-input: color-mix(in srgb, #1c1c21 93%, var(--accent) 7%);
+  --bg-app: color-mix(in srgb, #0b0b0d, var(--accent) calc(6% * var(--tint-on)));
+  --bg-rail: color-mix(in srgb, #060608, var(--accent) calc(6% * var(--tint-on)));
+  --bg-sidebar: color-mix(in srgb, #0e0e11, var(--accent) calc(6% * var(--tint-on)));
+  --bg-elevated: color-mix(in srgb, #1a1a1e, var(--accent) calc(7% * var(--tint-on)));
+  --bg-elevated-2: color-mix(in srgb, #232329, var(--accent) calc(7% * var(--tint-on)));
+  --bg-input: color-mix(in srgb, #1c1c21, var(--accent) calc(7% * var(--tint-on)));
   --bg-hover: rgba(255, 255, 255, 0.045);
   --bg-active: rgba(255, 255, 255, 0.08);
   --bg-bubble-in: #1c1c21;
@@ -63,12 +68,12 @@
 :root[data-theme="light"] {
   color-scheme: light;
   /* Faint accent tint on light surfaces too. */
-  --bg-app: color-mix(in srgb, #ffffff 96%, var(--accent) 4%);
-  --bg-rail: color-mix(in srgb, #e9e9ee 95%, var(--accent) 5%);
-  --bg-sidebar: color-mix(in srgb, #f5f5f7 95%, var(--accent) 5%);
-  --bg-elevated: color-mix(in srgb, #ffffff 96%, var(--accent) 4%);
-  --bg-elevated-2: color-mix(in srgb, #f0f0f3 95%, var(--accent) 5%);
-  --bg-input: color-mix(in srgb, #ececef 95%, var(--accent) 5%);
+  --bg-app: color-mix(in srgb, #ffffff, var(--accent) calc(4% * var(--tint-on)));
+  --bg-rail: color-mix(in srgb, #e9e9ee, var(--accent) calc(5% * var(--tint-on)));
+  --bg-sidebar: color-mix(in srgb, #f5f5f7, var(--accent) calc(5% * var(--tint-on)));
+  --bg-elevated: color-mix(in srgb, #ffffff, var(--accent) calc(4% * var(--tint-on)));
+  --bg-elevated-2: color-mix(in srgb, #f0f0f3, var(--accent) calc(5% * var(--tint-on)));
+  --bg-input: color-mix(in srgb, #ececef, var(--accent) calc(5% * var(--tint-on)));
   --bg-hover: rgba(0, 0, 0, 0.04);
   --bg-active: rgba(0, 0, 0, 0.075);
   --bg-bubble-in: #ececef;

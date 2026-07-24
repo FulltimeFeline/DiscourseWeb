@@ -9,7 +9,7 @@ import { useStore, useViewModel } from "@/core/reactive";
 import { preferences } from "@/core/Preferences";
 import { RoomNotificationMode, type NotificationSettingsInterface } from "@/matrix";
 import { settingsPrefs } from "./settingsPrefs";
-import { ACCENTS, DEFAULT_ACCENT } from "./accents";
+import { ACCENTS, DEFAULT_ACCENT, SYSTEM_ACCENT, systemAccentSupported } from "./accents";
 import { Section, Row, Toggle, Segmented, Button } from "./primitives";
 import { useMediaUrl } from "./useMediaUrl";
 import { Icon } from "@/ui/Icon";
@@ -26,20 +26,31 @@ export function AppearanceTab() {
           label="Accent Color"
           control={
             <div className="dm-swatches">
-              {ACCENTS.map((a) => {
-                const hex = a.hex ?? DEFAULT_ACCENT;
-                const active = (a.hex ?? DEFAULT_ACCENT) === p.accent;
+              {ACCENTS.filter((a) => a.hex !== SYSTEM_ACCENT || systemAccentSupported).map((a) => {
+                const value = a.hex ?? DEFAULT_ACCENT;
+                const active = value === p.accent;
                 return (
                   <button
                     key={a.id}
                     title={a.label}
                     className={`dm-swatch${active ? " dm-swatch--on" : ""}`}
-                    style={{ background: hex }}
-                    onClick={() => preferences.patch({ accent: a.hex ?? DEFAULT_ACCENT })}
+                    // The System swatch shows the live OS accent.
+                    style={{ background: a.hex === SYSTEM_ACCENT ? "AccentColor" : value }}
+                    onClick={() => preferences.patch({ accent: value })}
                   />
                 );
               })}
             </div>
+          }
+        />
+        <Row
+          label="Tinted window"
+          hint="Washes the window background with the accent color; off keeps the plain gray."
+          control={
+            <Toggle
+              checked={p.tintedWindow}
+              onChange={(v) => preferences.patch({ tintedWindow: v })}
+            />
           }
         />
       </Section>
@@ -289,6 +300,7 @@ export function AdvancedTab() {
               preferences.patch({
                 theme: "system",
                 accent: DEFAULT_ACCENT,
+                tintedWindow: true,
                 messageDensity: "comfortable",
                 fontScale: 1,
                 sendOnEnter: true,
