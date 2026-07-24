@@ -64,7 +64,7 @@ export function RoomAvatar({
   };
 
   if (url) {
-    return <img className="rl-avatar" src={url} alt="" style={style} aria-hidden />;
+    return <img className="rl-avatar" src={url} alt="" style={style} aria-hidden decoding="async" />;
   }
   return (
     <div

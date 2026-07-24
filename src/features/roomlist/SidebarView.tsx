@@ -128,8 +128,12 @@ export function SidebarView({ app }: { app: AppState }) {
 
   const selectRoom = (id: string) => app.selectRoom(id);
 
-  // Header (space / Home) options menu.
+  // Header (space / Home) options menu. "Mark all as read" reads the visible
+  // rooms through a ref at click time, so the memoized items array (and an open
+  // menu) stays stable across the 100 ms room-list flushes.
   const [headerMenu, setHeaderMenu] = useState<MenuAnchor | null>(null);
+  const visibleRoomsRef = useRef(visibleRooms);
+  visibleRoomsRef.current = visibleRooms;
   const headerMenuItems = useMemo<MenuItem[]>(() => {
     const rl = scope.roomList;
     const items: MenuItem[] = [
@@ -137,7 +141,7 @@ export function SidebarView({ app }: { app: AppState }) {
         key: "read-all",
         label: "Mark all as read",
         icon: "check",
-        onSelect: () => void rl.markRead(visibleRooms.map((r) => r.id)),
+        onSelect: () => void rl.markRead(visibleRoomsRef.current.map((r) => r.id)),
       },
     ];
     if (selectedSpaceId != null) {
@@ -162,7 +166,7 @@ export function SidebarView({ app }: { app: AppState }) {
       );
     }
     return items;
-  }, [scope, selectedSpaceId, visibleRooms, app]);
+  }, [scope, selectedSpaceId, app]);
 
   // "+" new-conversation menu (space-aware).
   const [newMenu, setNewMenu] = useState<MenuAnchor | null>(null);
@@ -194,6 +198,10 @@ export function SidebarView({ app }: { app: AppState }) {
     invite: false,
     spaces: new Set(),
   });
+  // Keyed on the space ID SET (not the orderedSpaces array identity, which is
+  // replaced on every space diff batch) so an open menu doesn't re-run the
+  // async power-level sweep — and flicker — on unrelated diffs.
+  const spaceIdsKey = spaces.orderedSpaces.map((s) => s.id).join(",");
   useEffect(() => {
     const room = roomMenu?.room;
     setRoomPerms({ invite: false, spaces: new Set() });
@@ -205,7 +213,7 @@ export function SidebarView({ app }: { app: AppState }) {
       const canMove = room.isSpace ? false : await scope.spaces.checkCanMoveRoom(room.id).catch(() => false);
       if (canMove) {
         await Promise.all(
-          spaces.orderedSpaces.map(async (s) => {
+          scope.spaces.state.orderedSpaces.map(async (s) => {
             if (s.id === room.id) return;
             if (await scope.spaces.checkCanManageSpace(s.id).catch(() => false)) manageable.add(s.id);
           }),
@@ -216,7 +224,8 @@ export function SidebarView({ app }: { app: AppState }) {
     return () => {
       alive = false;
     };
-  }, [roomMenu, scope, spaces.orderedSpaces]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomMenu, scope, spaceIdsKey]);
   const openRoomMenu = (e: React.MouseEvent, room: RoomSummary) => {
     e.preventDefault();
     setRoomMenu({ anchor: { x: e.clientX, y: e.clientY }, room });
@@ -345,7 +354,18 @@ export function SidebarView({ app }: { app: AppState }) {
       )}
 
       {!roomList.isLoaded && roomList.rooms.length === 0 ? (
-        <div className="rl__status">Syncing…</div>
+        // Skeleton rows sized like real rows, so the first sync doesn't jump.
+        <div className="rl__scroll" aria-label="Loading rooms">
+          {Array.from({ length: 8 }, (_, i) => (
+            <div key={i} className="rl-row rl-row--skeleton" aria-hidden>
+              <div className="rl-skel-avatar" />
+              <div className="rl-skel-lines">
+                <div />
+                <div />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="rl__scroll">
           {selectedSpaceId != null && bannerUrl && (
@@ -504,7 +524,7 @@ function RoomsSection({
 
   if (rooms.length > VIRTUALIZE_THRESHOLD) {
     return (
-      <div className="rl__list" role="listbox" ref={scrollParent}>
+      <div className="rl__list" aria-label="Rooms" ref={scrollParent}>
         <Virtuoso
           style={{ height: "100%" }}
           data={rooms}
@@ -516,7 +536,7 @@ function RoomsSection({
   }
 
   return (
-    <div className="rl__list rl__list--short" role="listbox">
+    <div className="rl__list rl__list--short" aria-label="Rooms">
       {rooms.map((room) => (
         <div key={room.id}>{renderRow(room)}</div>
       ))}

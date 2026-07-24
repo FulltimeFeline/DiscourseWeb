@@ -563,8 +563,18 @@ export function Composer(props: ComposerProps) {
         setPicker(null);
       }
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setPicker(null);
+      }
+    };
     document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey, true);
+    };
   }, [picker]);
   useEffect(() => setPicker(null), [room.id]);
 
@@ -712,11 +722,12 @@ export function Composer(props: ComposerProps) {
     >
       {/* Autocomplete popup */}
       {(showMentions || showEmotes) && (
-        <div className="dc-ac-popup" role="listbox">
+        <div className="dc-ac-popup" id="dc-ac-listbox" role="listbox">
           {showMentions &&
             mentionMatches.map((m, i) => (
               <div
                 key={m.member.userId}
+                id={`dc-ac-${i}`}
                 className={`dc-ac-row${i === selected ? " sel" : ""}`}
                 onMouseEnter={() => setSelected(i)}
                 onMouseDown={(e) => {
@@ -742,6 +753,7 @@ export function Composer(props: ComposerProps) {
             emojiMatches.map((s, i) => (
               <div
                 key={s.label + i}
+                id={`dc-ac-${i}`}
                 className={`dc-ac-row${i === selected ? " sel" : ""}`}
                 onMouseEnter={() => setSelected(i)}
                 onMouseDown={(e) => {
@@ -915,6 +927,11 @@ export function Composer(props: ComposerProps) {
               className="dc-textarea"
               value={text}
               placeholder={placeholder}
+              aria-label={placeholder}
+              aria-autocomplete="list"
+              aria-expanded={suggestionCount > 0}
+              aria-controls={suggestionCount > 0 ? "dc-ac-listbox" : undefined}
+              aria-activedescendant={suggestionCount > 0 ? `dc-ac-${selected}` : undefined}
               rows={1}
               onChange={onChange}
               onKeyDown={onKeyDown}

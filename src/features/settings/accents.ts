@@ -28,4 +28,4 @@ export const ACCENTS: AccentSwatch[] = [
 
 /** The default `--accent` from theme.css, used when "Default" is picked. Must
  *  match theme.css so the "Default" swatch isn't a duplicate of "Blue". */
-export const DEFAULT_ACCENT = "#c65cf5";
+export const DEFAULT_ACCENT = "#9059f1";

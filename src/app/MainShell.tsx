@@ -5,7 +5,7 @@ import type { MatrixSession } from "@/core/MatrixSession";
 import { SessionProvider } from "./context";
 import { SpacesRail } from "@/features/roomlist/SpacesRail";
 import { SidebarView } from "@/features/roomlist/SidebarView";
-import { useRoomListScope } from "@/features/roomlist/scope";
+import { useRoomListScope, type RoomListScope } from "@/features/roomlist/scope";
 import { RoomPane } from "@/features/timeline/RoomPane";
 import { ModalHost, SettingsButton } from "@/features/settings";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
@@ -46,7 +46,6 @@ export function MainShell({ app, session }: { app: AppState; session: MatrixSess
 function ShellContent({ app, session }: { app: AppState; session: MatrixSession }) {
   const s = useViewModel(app);
   const scope = useRoomListScope(app, session);
-  const roomList = useViewModel(scope.roomList);
   const needsVerification = useNeedsVerification();
   const sync = useStore(session.syncState);
   const disconnected = sync === "offline" || sync === "error" || sync === "terminated";
@@ -81,22 +80,11 @@ function ShellContent({ app, session }: { app: AppState; session: MatrixSession 
     };
   }, []);
 
-  // Feed the ring watcher the set of joined rooms so it can detect incoming
-  // calls (hasRoomCall rising edges).
-  useEffect(() => {
-    const ids = roomList.rooms
-      .filter((r) => r.membership === "joined")
-      .map((r) => r.id);
-    incomingCallStoreFor(session).setWatchedRooms(ids);
-  }, [session, roomList.rooms]);
-
   // Desktop notifications: fire on a new non-own message in a room that isn't
   // the focused one. Drives off the room-list preview timestamps (no second
   // subscription). The first pass only primes the baseline so we don't notify
   // for the whole backlog on launch.
   const notifier = useMemo(() => new WebNotifications(app), [app]);
-  const lastPreviewTs = useRef<Map<string, number>>(new Map());
-  const notifyPrimed = useRef(false);
   useEffect(() => {
     void notifier.requestPermission().then((granted) => {
       // Background push (deployment-gated; no-op unless a gateway is configured).
@@ -127,6 +115,123 @@ function ShellContent({ app, session }: { app: AppState; session: MatrixSession 
     apply();
     return settingsPrefs.subscribe(apply);
   }, [notifier]);
+  // Clear a room's banners when it's opened.
+  useEffect(() => {
+    if (s.selectedRoomId) notifier.clearRoom(s.selectedRoomId);
+  }, [s.selectedRoomId, notifier]);
+
+  // A room's "Join call" button dispatches this so we can open the call overlay
+  // without threading a callback through the timeline feature.
+  useEffect(() => {
+    const onOpenCall = (e: Event) => {
+      const detail = (e as CustomEvent<OpenCallDetail>).detail;
+      if (detail?.roomId) setCall(detail);
+    };
+    window.addEventListener("discourse:open-call", onOpenCall as EventListener);
+    return () =>
+      window.removeEventListener("discourse:open-call", onOpenCall as EventListener);
+  }, []);
+
+  return (
+    <div className={`shell${s.selectedRoomId ? " shell--room-open" : ""}`}>
+      {disconnected && (
+        <div className={`shell__netbanner${sync === "offline" ? " shell__netbanner--offline" : ""}`}>
+          {sync === "offline" ? "You're offline" : "Reconnecting…"}
+        </div>
+      )}
+      {needsVerification && verifyDismissed && (
+        <div className="shell__verifybanner">
+          <span><Icon name="shield" size={13} /> This session isn’t verified — your encrypted messages stay locked.</span>
+          <button onClick={() => setVerifyDismissed(false)}>Verify</button>
+        </div>
+      )}
+      <aside className="shell__rail">
+          <SpacesRail app={app} />
+          <div className="shell__rail-footer">
+            <SettingsButton />
+          </div>
+        </aside>
+        <aside className="shell__sidebar">
+          <SidebarView app={app} />
+        </aside>
+        <main className="shell__room">
+          {s.selectedRoomId ? (
+            <RoomPane key={s.selectedRoomId} app={app} roomId={s.selectedRoomId} />
+          ) : (
+            <div className="shell__empty">
+              <Icon name="envelope" size={44} strokeWidth={1.4} className="shell__empty-glyph" />
+              <div>Select a conversation</div>
+            </div>
+          )}
+        </main>
+
+        {/* Cross-cutting overlays */}
+        <RoomListBridge scope={scope} session={session} notifier={notifier} />
+        <ModalHost />
+        <KeyboardShortcuts app={app} />
+        <VerificationManager
+          showVerify={needsVerification && !verifyDismissed}
+          onVerifyClosed={() => setVerifyDismissed(true)}
+        />
+        <IncomingCallListener
+          onAccept={(roomId) => setCall({ roomId, joinExisting: true })}
+        />
+        {call && (
+          <div className="shell__call-overlay">
+            <CallView
+              roomId={call.roomId}
+              roomName={call.roomName}
+              joinExisting={call.joinExisting}
+              onClose={() => setCall(null)}
+            />
+          </div>
+        )}
+        {compose && (
+          <NewChat initialMode={compose} onClose={() => setCompose(null)} />
+        )}
+        {s.isAddAccountOpen && (
+          <div className="shell__addaccount">
+            <button
+              className="shell__addaccount-close"
+              onClick={() => app.setAddAccountOpen(false)}
+              aria-label="Cancel"
+            >
+              <Icon name="x" size={20} />
+            </button>
+            <LoginView app={app} />
+          </div>
+        )}
+      </div>
+  );
+}
+
+/**
+ * Null-rendering subscriber for the room-list-driven side effects (ring
+ * watcher, message/invite/call notifications), so the shell itself doesn't
+ * re-render on every room-list publish.
+ */
+function RoomListBridge({
+  scope,
+  session,
+  notifier,
+}: {
+  scope: RoomListScope;
+  session: MatrixSession;
+  notifier: WebNotifications;
+}) {
+  const roomList = useViewModel(scope.roomList);
+
+  // Feed the ring watcher the set of joined rooms so it can detect incoming
+  // calls (hasRoomCall rising edges).
+  useEffect(() => {
+    const ids = roomList.rooms
+      .filter((r) => r.membership === "joined")
+      .map((r) => r.id);
+    incomingCallStoreFor(session).setWatchedRooms(ids);
+  }, [session, roomList.rooms]);
+
+  const lastPreviewTs = useRef<Map<string, number>>(new Map());
+  const notifyPrimed = useRef(false);
   useEffect(() => {
     const prev = lastPreviewTs.current;
     for (const r of roomList.rooms) {
@@ -189,91 +294,6 @@ function ShellContent({ app, session }: { app: AppState; session: MatrixSession 
     }
     callsPrimed.current = true;
   }, [activeCalls, notifier, roomList.rooms]);
-  // Clear a room's banners when it's opened.
-  useEffect(() => {
-    if (s.selectedRoomId) notifier.clearRoom(s.selectedRoomId);
-  }, [s.selectedRoomId, notifier]);
 
-  // A room's "Join call" button dispatches this so we can open the call overlay
-  // without threading a callback through the timeline feature.
-  useEffect(() => {
-    const onOpenCall = (e: Event) => {
-      const detail = (e as CustomEvent<OpenCallDetail>).detail;
-      if (detail?.roomId) setCall(detail);
-    };
-    window.addEventListener("discourse:open-call", onOpenCall as EventListener);
-    return () =>
-      window.removeEventListener("discourse:open-call", onOpenCall as EventListener);
-  }, []);
-
-  return (
-    <div className={`shell${s.selectedRoomId ? " shell--room-open" : ""}`}>
-      {disconnected && (
-        <div className={`shell__netbanner${sync === "offline" ? " shell__netbanner--offline" : ""}`}>
-          {sync === "offline" ? "You're offline" : "Reconnecting…"}
-        </div>
-      )}
-      {needsVerification && verifyDismissed && (
-        <div className="shell__verifybanner">
-          <span><Icon name="shield" size={13} /> This session isn’t verified — your encrypted messages stay locked.</span>
-          <button onClick={() => setVerifyDismissed(false)}>Verify</button>
-        </div>
-      )}
-      <aside className="shell__rail">
-          <SpacesRail app={app} />
-          <div className="shell__rail-footer">
-            <SettingsButton />
-          </div>
-        </aside>
-        <aside className="shell__sidebar">
-          <SidebarView app={app} />
-        </aside>
-        <main className="shell__room">
-          {s.selectedRoomId ? (
-            <RoomPane key={s.selectedRoomId} app={app} roomId={s.selectedRoomId} />
-          ) : (
-            <div className="shell__empty">
-              <Icon name="envelope" size={44} strokeWidth={1.4} className="shell__empty-glyph" />
-              <div>Select a conversation</div>
-            </div>
-          )}
-        </main>
-
-        {/* Cross-cutting overlays */}
-        <ModalHost />
-        <KeyboardShortcuts app={app} />
-        <VerificationManager
-          showVerify={needsVerification && !verifyDismissed}
-          onVerifyClosed={() => setVerifyDismissed(true)}
-        />
-        <IncomingCallListener
-          onAccept={(roomId) => setCall({ roomId, joinExisting: true })}
-        />
-        {call && (
-          <div className="shell__call-overlay">
-            <CallView
-              roomId={call.roomId}
-              roomName={call.roomName}
-              joinExisting={call.joinExisting}
-              onClose={() => setCall(null)}
-            />
-          </div>
-        )}
-        {compose && (
-          <NewChat initialMode={compose} onClose={() => setCompose(null)} />
-        )}
-        {s.isAddAccountOpen && (
-          <div className="shell__addaccount">
-            <button
-              className="shell__addaccount-close"
-              onClick={() => app.setAddAccountOpen(false)}
-              aria-label="Cancel"
-            >
-              <Icon name="x" size={20} />
-            </button>
-            <LoginView app={app} />
-          </div>
-        )}
-      </div>
-  );
+  return null;
 }

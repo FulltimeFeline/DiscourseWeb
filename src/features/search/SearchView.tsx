@@ -32,6 +32,7 @@ export function SearchView({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string>();
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const runId = useRef(0);
 
   const roomName = useCallback(
     (roomId: string) => scope.roomList.state.rooms.find((r) => r.id === roomId)?.name ?? roomId,
@@ -61,6 +62,7 @@ export function SearchView({ onClose }: { onClose: () => void }) {
       clearTimeout(timer.current);
       const query = q.trim();
       if (!query) {
+        runId.current++;
         setPeople([]);
         setRooms([]);
         setMessages([]);
@@ -68,12 +70,14 @@ export function SearchView({ onClose }: { onClose: () => void }) {
         return;
       }
       setLoading(true);
+      const id = ++runId.current;
       timer.current = setTimeout(async () => {
         const [p, r, m] = await Promise.all([
           searchUsers(session, query),
           searchPublicRooms(session, query),
           searchMessages(session, query),
         ]);
+        if (id !== runId.current) return;
         setPeople(p);
         setRooms(r.rooms);
         setMessages(m.hits);

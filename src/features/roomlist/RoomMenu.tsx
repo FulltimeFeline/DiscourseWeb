@@ -37,6 +37,8 @@ export function RoomMenu({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const [pos, setPos] = useState<{ left: number; top: number }>({
     left: anchor.x,
     top: anchor.y,
@@ -62,29 +64,30 @@ export function RoomMenu({
 
   // Dismiss on outside interaction.
   useEffect(() => {
+    const close = () => onCloseRef.current();
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+      if (ref.current && !ref.current.contains(e.target as Node)) close();
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        close();
       }
     };
     // Capture-phase pointerdown so a right-click elsewhere closes then reopens.
     window.addEventListener("mousedown", onDown, true);
     window.addEventListener("contextmenu", onDown, true);
     window.addEventListener("keydown", onKey, true);
-    window.addEventListener("blur", onClose);
-    window.addEventListener("scroll", onClose, true);
+    window.addEventListener("blur", close);
+    window.addEventListener("scroll", close, true);
     return () => {
       window.removeEventListener("mousedown", onDown, true);
       window.removeEventListener("contextmenu", onDown, true);
       window.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("blur", onClose);
-      window.removeEventListener("scroll", onClose, true);
+      window.removeEventListener("blur", close);
+      window.removeEventListener("scroll", close, true);
     };
-  }, [onClose]);
+  }, []);
 
   const activate = (item: MenuItem) => {
     if (item.confirm && confirming !== item.key) {

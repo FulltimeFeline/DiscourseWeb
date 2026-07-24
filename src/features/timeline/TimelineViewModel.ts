@@ -66,6 +66,8 @@ interface TimelineState {
   canRedactOther: boolean;
   /** True once the initial window (+ small buffer) has loaded; gates the list. */
   initialLoadComplete: boolean;
+  /** Set when creating the SDK timeline failed; the view offers a retry. */
+  loadFailed?: boolean;
   /** id of the read-marker entry while the "NEW" divider should show. */
   unreadMarkerId?: string;
 }
@@ -112,6 +114,10 @@ export class TimelineViewModel extends ViewModel<TimelineState> {
   // Anchor id for firstItemIndex tracking (a stable item whose position we track
   // across prepends; see setEntries).
   private firstItemId?: string;
+  // The base the anchor offsets from. Rebased downward when the anchor is lost
+  // (reset with no shared ids), so the published firstItemIndex never increases
+  // within a mount — react-virtuoso only supports decreases (prepends).
+  private firstIndexBase = FIRST_INDEX_BASE;
 
   // Lazy shield fetch bookkeeping
   private shieldsRequested = new Set<string>();
@@ -170,6 +176,7 @@ export class TimelineViewModel extends ViewModel<TimelineState> {
 
   private async performStart(): Promise<void> {
     if (this.disposed) return;
+    if (this.state.loadFailed) this.setState({ loadFailed: false });
 
     // Create the timeline and attach the listener first. This delivers the
     // room's already-synced (cached) events immediately, so the room opens
@@ -180,6 +187,7 @@ export class TimelineViewModel extends ViewModel<TimelineState> {
       timeline = await this.room.timelineWithConfiguration(config);
     } catch (err) {
       console.error("[timeline] timelineWithConfiguration failed", this.roomId, err);
+      this.setState({ loadFailed: true, initialLoadComplete: true });
       return;
     }
     if (this.disposed) return;
@@ -299,7 +307,11 @@ export class TimelineViewModel extends ViewModel<TimelineState> {
         this.apply(diffs);
       },
     });
-    if (this.disposed) {
+    // Bail if the VM was disposed OR re-parked while addListener was awaiting:
+    // otherwise a fast park→unpark→park (or dispose) race could re-attach a live
+    // listener onto a VM that should be dormant. This matters now that view
+    // models are cached and parked/unparked across room switches.
+    if (this.disposed || this.parked) {
       disposeHandle(handle);
       return;
     }
@@ -374,6 +386,10 @@ export class TimelineViewModel extends ViewModel<TimelineState> {
 
   get isParked(): boolean {
     return this.parked;
+  }
+
+  get isDisposed(): boolean {
+    return this.disposed;
   }
 
   // --- diff application (the 11-case algebra) ------------------------------
@@ -552,11 +568,17 @@ export class TimelineViewModel extends ViewModel<TimelineState> {
           e.virtual.type === "readMarker" ||
           e.virtual.type === "timelineStart"),
     );
-    let firstItemIndex = FIRST_INDEX_BASE;
+    let firstItemIndex = this.firstIndexBase;
     if (this.firstItemId !== undefined) {
       const found = visibleItems.findIndex((e) => e.id === this.firstItemId);
-      if (found > 0) firstItemIndex = FIRST_INDEX_BASE - found;
-      else if (found < 0) this.firstItemId = visibleItems[0]?.id; // anchor gone (reset)
+      if (found > 0) firstItemIndex = this.firstIndexBase - found;
+      else if (found < 0) {
+        // Anchor gone (reset): rebase to the currently-published index so the
+        // next value can only stay equal or decrease.
+        this.firstIndexBase = this.state.firstItemIndex;
+        firstItemIndex = this.firstIndexBase;
+        this.firstItemId = visibleItems[0]?.id;
+      }
       // found === 0 means the anchor is still first (no prepend); keep base.
     } else {
       this.firstItemId = visibleItems[0]?.id;

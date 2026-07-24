@@ -64,9 +64,11 @@ function serviceFor(session: MatrixSession): PronounsService {
 /** Pronouns for a user id, lazily fetched + cached. Undefined until resolved. */
 export function usePronouns(session: MatrixSession, userId: string | undefined): string | undefined {
   const svc = serviceFor(session);
-  const snap = useSyncExternalStore(svc.subscribe, svc.getSnapshot);
+  // Subscribe to the per-user value, not the whole cache Map: strings are
+  // identity-stable, so only rows whose own sender's pronouns changed re-render.
+  const value = useSyncExternalStore(svc.subscribe, () => (userId ? svc.get(userId) : undefined));
   useEffect(() => {
     if (userId) svc.register(userId);
   }, [svc, userId]);
-  return userId ? snap.get(userId) ?? undefined : undefined;
+  return value;
 }

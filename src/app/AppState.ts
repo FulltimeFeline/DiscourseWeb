@@ -18,7 +18,6 @@ import { disposeRoomListScope } from "@/features/roomlist/scope";
 import { disposeIncomingCallStore } from "@/features/call";
 import { disposeVerificationManager } from "@/features/verification";
 import { disposePresenceService } from "@/core/PresenceService";
-import { disposeEmojiSession } from "@/features/emotes/emojiSession";
 import { disposeTimelineCache } from "@/features/timeline/timelineCache";
 
 export type Phase = "launching" | "loggedOut" | "disconnected" | "active";
@@ -56,6 +55,7 @@ export class AppState extends ViewModel<AppSnapshot> {
   private store = new SessionStore();
   private scopes = new Map<string, MatrixSession>();
   private reconnectTimer?: ReturnType<typeof setTimeout>;
+  private reconnectDelayMs = 2000;
   private authErrorHandled = new Set<string>();
 
   constructor() {
@@ -265,7 +265,10 @@ export class AppState extends ViewModel<AppSnapshot> {
       disposeIncomingCallStore(session);
       disposeVerificationManager(session);
       disposePresenceService(session);
-      disposeEmojiSession(session);
+      // Dynamic import: keep the emoji feature (and its ~540 KB emojibase
+      // dataset) off the cold-boot module graph. It's only pulled here during a
+      // rare session teardown, by which point the chunk is already cached.
+      void import("@/features/emotes/emojiSession").then((m) => m.disposeEmojiSession(session));
       disposeTimelineCache(session);
     } catch {
       // best-effort teardown
@@ -292,13 +295,15 @@ export class AppState extends ViewModel<AppSnapshot> {
       if (this.state.phase !== "disconnected") return;
       await this.activate(userId);
       if (this.state.phase === "disconnected") {
-        this.reconnectTimer = setTimeout(tick, 30_000);
+        this.reconnectDelayMs = Math.min(this.reconnectDelayMs * 2, 30_000);
+        this.reconnectTimer = setTimeout(tick, this.reconnectDelayMs);
       }
     };
-    this.reconnectTimer = setTimeout(tick, 30_000);
+    this.reconnectTimer = setTimeout(tick, this.reconnectDelayMs);
   }
 
   private clearReconnect(): void {
+    this.reconnectDelayMs = 2000;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = undefined;

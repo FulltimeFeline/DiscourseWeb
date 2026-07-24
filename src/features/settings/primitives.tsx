@@ -1,8 +1,25 @@
 // Small presentational primitives shared by Settings, Room Settings, and Profile.
 // No state library: plain components reading CSS variables from theme.css.
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Icon } from "@/ui/Icon";
+
+export function useModalBehavior(onClose: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    ref.current?.focus();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      previous?.focus();
+    };
+  }, [onClose]);
+  return ref;
+}
 
 export function Modal({
   title,
@@ -17,9 +34,12 @@ export function Modal({
   wide?: boolean;
   footer?: ReactNode;
 }) {
+  const ref = useModalBehavior(onClose);
   return (
     <div className="dm-scrim" onMouseDown={onClose}>
       <div
+        ref={ref}
+        tabIndex={-1}
         className={`dm-modal${wide ? " dm-modal--wide" : ""}`}
         role="dialog"
         aria-modal="true"

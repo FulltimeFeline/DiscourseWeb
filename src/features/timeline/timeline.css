@@ -138,6 +138,7 @@
   gap: 10px;
   padding: 1px 16px;
   position: relative;
+  transition: background-color 0.1s ease;
 }
 .msg-row:hover {
   background: var(--bg-hover);
@@ -174,6 +175,7 @@
   opacity: 0;
   padding-top: 3px;
   font-variant-numeric: tabular-nums;
+  transition: opacity 0.12s ease;
 }
 .msg-row:hover .msg-gutter__time,
 .msg-gutter__time--always {
@@ -191,9 +193,13 @@
 }
 .msg-sender {
   font-weight: 600;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   color: var(--text-primary);
   cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .msg-sender:hover {
   text-decoration: underline;
@@ -224,9 +230,10 @@
   font-size: 11px;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 .msg-text {
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale));
   line-height: 1.4;
   color: var(--text-primary);
   /* Content is rendered HTML (marked, with breaks:true → <br>). `pre-wrap`
@@ -294,8 +301,9 @@
 }
 .msg-media__img {
   display: block;
-  max-width: 100%;
-  height: auto;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   cursor: pointer;
   background-size: cover;
   background-position: center;
@@ -305,6 +313,21 @@
 }
 .msg-media--sticker .msg-media__img {
   cursor: default;
+  object-fit: contain;
+}
+.msg-media__failed {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
 }
 .msg-video {
   position: relative;
@@ -330,7 +353,7 @@
 }
 .msg-caption {
   margin-top: 3px;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   color: var(--text-primary);
   white-space: pre-wrap;
   word-break: break-word;
@@ -451,40 +474,6 @@
   color: var(--text-tertiary);
 }
 
-/* --- reactions --- */
-.reactions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 4px;
-}
-.reaction-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 1px 7px;
-  border-radius: var(--radius-pill);
-  border: 1px solid transparent;
-  background: rgba(255, 255, 255, 0.06);
-  font-size: 12px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  line-height: 20px;
-}
-.reaction-chip--own {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 20%, transparent);
-  color: var(--text-primary);
-}
-.reaction-chip__img {
-  width: 16px;
-  height: 16px;
-  object-fit: contain;
-}
-.reaction-chip__add {
-  color: var(--text-tertiary);
-}
-
 /* --- receipts --- */
 .receipts {
   display: flex;
@@ -492,6 +481,12 @@
   margin-top: 2px;
   padding-right: 4px;
   position: relative;
+}
+/* Hover target is only the avatar cluster, not the full-width receipts strip. */
+.receipts__cluster {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
 }
 /* Immediate "who read" popover on hovering the receipt cluster. */
 .receipts-pop {
@@ -503,6 +498,7 @@
   max-width: 240px;
   max-height: 220px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 6px 8px;
   background: var(--bg-elevated);
   border: 1px solid var(--separator);
@@ -641,23 +637,17 @@
 }
 
 /* --- overlays --- */
-.jump-pill,
+@keyframes tl-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
 .jump-present {
   position: absolute;
   z-index: 5;
   cursor: pointer;
   border: none;
-}
-.jump-unread {
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--accent);
-  color: var(--text-on-accent);
-  padding: 6px 14px;
-  border-radius: var(--radius-pill);
-  font-size: 13px;
-  box-shadow: var(--shadow-sheet);
 }
 .jump-present {
   /* Sit ABOVE the floating composer bar, not behind it. */
@@ -676,6 +666,7 @@
   justify-content: center;
   padding: 0;
   line-height: 0;
+  animation: tl-fade-up 0.15s ease-out;
 }
 /* Auto-dismiss the unread affordances a few seconds after they appear. */
 .jump-unread {
@@ -702,16 +693,17 @@
   color: var(--text-secondary);
   font-style: italic;
   border-radius: var(--radius-pill);
-  background: rgba(60, 62, 72, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.13);
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-edge);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 18px rgba(0, 0, 0, 0.4);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  animation: tl-fade-up 0.15s ease-out;
 }
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
   .typing-tag {
-    background: rgba(60, 62, 72, 0.4);
+    background: var(--glass-fill);
     -webkit-backdrop-filter: blur(16px) saturate(1.5);
     backdrop-filter: blur(16px) saturate(1.5);
   }
@@ -753,6 +745,34 @@
   background: var(--bg-hover);
   color: var(--text-primary);
 }
+/* Keyboard-reachable "message actions" trigger; visible on hover/focus. */
+.msg-more {
+  position: absolute;
+  top: 2px;
+  right: 16px;
+  z-index: 5;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+}
+.msg-row:hover .msg-more,
+.msg-more:focus-visible {
+  opacity: 1;
+}
+.msg-more:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .msg-actions__palette {
   position: absolute;
   top: calc(100% + 4px);
@@ -793,7 +813,7 @@
   background: var(--bg-hover);
 }
 .ctx-menu__item--danger {
-  color: #f43f5e;
+  color: var(--unread-mention);
 }
 .ctx-menu__quick {
   display: flex;
@@ -815,6 +835,12 @@
 }
 
 /* --- thread panel --- */
+@keyframes thread-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
 .thread-panel {
   position: absolute;
   top: 0;
@@ -828,6 +854,7 @@
   flex-direction: column;
   z-index: 10;
   box-shadow: var(--shadow-sheet);
+  animation: thread-in 0.18s ease-out;
 }
 .thread-panel__header {
   display: flex;
@@ -1117,11 +1144,18 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
 }
 .roomsearch__result-time {
   font-size: 11px;
   color: var(--text-tertiary);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .roomsearch__result-body {
   display: block;

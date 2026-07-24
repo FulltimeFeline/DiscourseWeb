@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import type { EventEntry, TimelineEntry } from "@/models/types";
 import { useViewModel } from "@/core/reactive";
@@ -34,7 +34,21 @@ export const TimelineView = forwardRef<TimelineViewHandle, Props>(function Timel
   const ref = useRef<VirtuosoHandle>(null);
   const [atBottom, setAtBottom] = useState(true);
   const items = state.visibleItems;
-  const unreadIdx = items.findIndex((e) => e.kind === "virtual" && e.virtual.type === "readMarker");
+  // Where the fresh Virtuoso mount starts. A first-ever open mounts with an
+  // empty list, so this is undefined and `followOutput` pins it to the bottom as
+  // the reset streams in. But a cached room (re-opened via the timeline cache)
+  // mounts already populated — without an explicit initial index Virtuoso would
+  // start at the TOP, which read as "the chat is scrolled up, worse every
+  // switch". Anchoring to the last item lands re-opens at the newest message,
+  // matching a cold open. Captured once at mount (a ref) since it only seeds the
+  // initial scroll; live tailing is handled by followOutput afterwards.
+  const initialTopMostItemIndex = useRef(
+    items.length > 0 ? { index: items.length - 1, align: "end" as const } : undefined,
+  ).current;
+  const unreadIdx = useMemo(
+    () => items.findIndex((e) => e.kind === "virtual" && e.virtual.type === "readMarker"),
+    [items],
+  );
   const hasUnreadMarker = unreadIdx >= 0;
   // Track whether the read marker is currently on screen so the pill only shows
   // when it's scrolled out of view (not when the unread block already fits).
@@ -74,6 +88,26 @@ export const TimelineView = forwardRef<TimelineViewHandle, Props>(function Timel
 
   useImperativeHandle(handleRef, () => ({ jumpToEvent }), [jumpToEvent]);
 
+  // Stable row renderer. All captured values (vm, ownUserId, and the callbacks
+  // from RoomPane) are referentially stable, so this closure keeps its identity
+  // across VM state changes — Virtuoso then re-renders only the rows whose
+  // `entry` object actually changed (the memoized MessageRow bails on the rest),
+  // instead of re-rendering every visible row on every typing/receipt/diff tick.
+  const renderItem = useCallback(
+    (_: number, entry: TimelineEntry) => (
+      <Row
+        entry={entry}
+        vm={vm}
+        ownUserId={ownUserId}
+        onReply={onReply}
+        onEdit={onEdit}
+        onOpenThread={onOpenThread}
+        onJumpToEvent={jumpToEvent}
+      />
+    ),
+    [vm, ownUserId, onReply, onEdit, onOpenThread, jumpToEvent],
+  );
+
   // When new content arrives while already pinned to the bottom,
   // `atBottomStateChange` does not fire (no state change), so it can't mark the
   // room read on its own. Mark read whenever the item list changes while at the
@@ -85,6 +119,26 @@ export const TimelineView = forwardRef<TimelineViewHandle, Props>(function Timel
   // Reserve space at the bottom so the last message clears the floating glass
   // composer (and isn't stuck behind it when scrolled fully down).
 
+  if (items.length === 0 && state.loadFailed) {
+    return (
+      <div className="timeline-scroller" style={{ display: "flex" }}>
+        <div className="timeline-empty">
+          Couldn’t load this room.{" "}
+          <button onClick={() => void vm.start()}>Retry</button>
+        </div>
+      </div>
+    );
+  }
+  if (items.length === 0 && !state.initialLoadComplete) {
+    return (
+      <div className="timeline-scroller" style={{ display: "flex" }}>
+        <div className="timeline-empty">
+          <div className="boot__spinner" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`timeline-scroller${unreadFaded ? " unread-faded" : ""}`}>
       <Virtuoso
@@ -93,6 +147,11 @@ export const TimelineView = forwardRef<TimelineViewHandle, Props>(function Timel
         className="timeline-list"
         data={items}
         firstItemIndex={state.firstItemIndex}
+        initialTopMostItemIndex={initialTopMostItemIndex}
+        // Render a buffer of rows above/below the viewport so fast fling-scroll
+        // has content ready instead of flashing blank while Virtuoso catches up
+        // (the "jumpy/glitchy scroll" symptom). Cheap now that rows are memoized.
+        increaseViewportBy={{ top: 600, bottom: 600 }}
         alignToBottom
         followOutput={true}
         startReached={() => void vm.paginateBackwards()}
@@ -113,17 +172,7 @@ export const TimelineView = forwardRef<TimelineViewHandle, Props>(function Timel
         }}
         components={{ Footer: BottomSpacer }}
         computeItemKey={(_, item) => item.id}
-        itemContent={(_, entry) => (
-          <Row
-            entry={entry}
-            vm={vm}
-            ownUserId={ownUserId}
-            onReply={onReply}
-            onEdit={onEdit}
-            onOpenThread={onOpenThread}
-            onJumpToEvent={jumpToEvent}
-          />
-        )}
+        itemContent={renderItem}
       />
       {hasUnreadMarker && !markerOnScreen && (
         <button
@@ -150,7 +199,7 @@ function BottomSpacer() {
   return <div style={{ height: 84 }} aria-hidden />;
 }
 
-function Row(props: {
+const Row = memo(function Row(props: {
   entry: TimelineEntry;
   vm: TimelineViewModel;
   ownUserId: string;
@@ -183,4 +232,4 @@ function Row(props: {
       onJumpToEvent={props.onJumpToEvent}
     />
   );
-}
+});

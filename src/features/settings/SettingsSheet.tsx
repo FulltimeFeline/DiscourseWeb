@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import { Icon } from "@/ui/Icon";
 import type { SettingsTab } from "./ModalManager";
 import { AccountTab } from "./AccountTab";
+import { useModalBehavior } from "./primitives";
 import { StickerMaker } from "./StickerMaker";
 import {
   AppearanceTab,
@@ -35,14 +36,17 @@ const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
 
 export function SettingsSheet({ initialTab, onClose }: { initialTab: SettingsTab; onClose: () => void }) {
   const [tab, setTab] = useState<SettingsTab>(initialTab);
+  const ref = useModalBehavior(onClose);
 
   return (
     <div className="dm-scrim" onMouseDown={onClose}>
-      <div className="dm-settings" role="dialog" aria-modal="true" aria-label="Settings" onMouseDown={(e) => e.stopPropagation()}>
-        <nav className="dm-settings__tabs">
+      <div ref={ref} tabIndex={-1} className="dm-settings" role="dialog" aria-modal="true" aria-label="Settings" onMouseDown={(e) => e.stopPropagation()}>
+        <nav className="dm-settings__tabs" role="tablist" aria-label="Settings sections">
           {TABS.map((t) => (
             <button
               key={t.id}
+              role="tab"
+              aria-selected={t.id === tab}
               className={`dm-tab${t.id === tab ? " dm-tab--on" : ""}`}
               onClick={() => setTab(t.id)}
             >

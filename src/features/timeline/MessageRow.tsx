@@ -14,7 +14,7 @@ import { useStore } from "@/core/reactive";
 import { clampMediaSize } from "@/core/blurhash";
 import { useSession } from "@/app/context";
 import type { TimelineViewModel, WithHeader } from "./TimelineViewModel";
-import { useBlurhash, useMedia } from "./useMedia";
+import { useBlurhash, useMedia, useMediaWithStatus } from "./useMedia";
 import { Lightbox } from "@/features/media/Lightbox";
 import { Icon } from "@/ui/Icon";
 import { EmoteText } from "@/features/emotes";
@@ -26,6 +26,7 @@ import { usePronouns } from "@/core/PronounsService";
 import { useCustomEmoji } from "@/features/emotes/emojiSession";
 import { RoomAvatar } from "@/features/roomlist/RoomAvatar";
 import { useMemberProfile } from "@/features/details/memberProfiles";
+import { observeOnce } from "./rowVisibility";
 import { modals } from "@/features/settings/ModalManager";
 import {
   formatDuration,
@@ -55,23 +56,14 @@ export const MessageRow = memo(function MessageRow(props: Props) {
   const showsHeader = (entry as WithHeader).showsHeader !== false;
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
 
-  // Lazy shield fetch on first appearance.
+  // Lazy shield fetch on first appearance, via a shared IntersectionObserver so
+  // scrolling doesn't allocate one observer per mounted row.
   const rowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = rowRef.current;
     if (!el) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          vm.loadShieldIfNeeded(entry.id);
-          obs.disconnect();
-        }
-      },
-      { threshold: 0.1 },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
+    return observeOnce(el, () => vm.loadShieldIfNeeded(entry.id));
   }, [entry.id, vm]);
 
   const isSystem =
@@ -129,7 +121,15 @@ export const MessageRow = memo(function MessageRow(props: Props) {
           <div className="msg-header">
             <span
               className="msg-sender"
+              role="button"
+              tabIndex={0}
               onClick={() => modals.openProfile(entry.sender)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  modals.openProfile(entry.sender);
+                }
+              }}
               title={entry.sender}
               style={prefs.coloredSenderNames ? { color: colorFor(entry.sender) } : undefined}
             >
@@ -181,6 +181,15 @@ export const MessageRow = memo(function MessageRow(props: Props) {
         )}
         <ReceiptStack entry={entry} vm={vm} />
       </div>
+      <button
+        type="button"
+        className="msg-more"
+        aria-label="Message actions"
+        aria-haspopup="menu"
+        onClick={openMenuFromButton}
+      >
+        <Icon name="chevron-down" size={14} />
+      </button>
       {menu && (
         <ContextMenu
           {...props}
@@ -204,7 +213,16 @@ function Avatar({ entry, vm }: { entry: EventEntry; vm: TimelineViewModel }) {
   const openProfile = () => modals.openProfile(entry.sender);
   return (
     <span
+      role="button"
+      tabIndex={0}
+      aria-label={`View profile: ${name}`}
       onClick={openProfile}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openProfile();
+        }
+      }}
       title={entry.sender}
       style={{ display: "inline-flex", lineHeight: 0, cursor: "pointer" }}
     >
@@ -337,18 +355,32 @@ function ImageView({ content }: { content: ImageContent }) {
   const session = useSession();
   const size = clampMediaSize(content.width, content.height, { maxWidth: 360, maxHeight: 280, fallbackWidth: 280, fallbackHeight: 200 });
   const blur = useBlurhash(content.blurhash);
-  const url = useMedia(content.thumbnail ?? content.source, { width: 480, height: 480 });
+  const { url, failed } = useMediaWithStatus(content.thumbnail ?? content.source, { width: 480, height: 480 });
   const [zoom, setZoom] = useState(false);
   return (
     <>
-      <div className="msg-media" style={{ width: size.width, height: size.height }}>
+      <div className="msg-media" style={{ width: size.width, aspectRatio: `${size.width} / ${size.height}` }}>
         <img
           className={`msg-media__img${url ? "" : " msg-media__blur"}`}
           src={url ?? blur}
           alt={content.body}
-          style={{ width: size.width, height: size.height, backgroundImage: blur ? `url(${blur})` : undefined }}
+          decoding="async"
+          role="button"
+          tabIndex={0}
+          style={{ backgroundImage: blur ? `url(${blur})` : undefined }}
           onClick={() => setZoom(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setZoom(true);
+            }
+          }}
         />
+        {failed && !url && (
+          <span className="msg-media__failed" title="Couldn’t load image">
+            <Icon name="warning" size={16} />
+          </span>
+        )}
       </div>
       {content.caption && <div className="msg-caption">{content.caption}</div>}
       {zoom && (
@@ -369,22 +401,23 @@ function StickerView({ content }: { content: StickerContent }) {
   const size = clampMediaSize(content.width, content.height, { maxWidth: 160, maxHeight: 160, fallbackWidth: 160, fallbackHeight: 160 });
   const url = useMedia(content.source, { width: 160, height: 160 });
   return (
-    <div className="msg-media msg-media--sticker" style={{ width: size.width, height: size.height }}>
-      {url && <img className="msg-media__img" src={url} alt={content.body} style={{ width: size.width, height: size.height }} />}
+    <div className="msg-media msg-media--sticker" style={{ width: size.width, aspectRatio: `${size.width} / ${size.height}` }}>
+      {url && <img className="msg-media__img" src={url} alt={content.body} decoding="async" />}
     </div>
   );
 }
 
 function VideoView({ content }: { content: VideoContent }) {
+  const size = clampMediaSize(content.width, content.height, { maxWidth: 360, maxHeight: 280, fallbackWidth: 320, fallbackHeight: 200 });
   const blur = useBlurhash(content.blurhash);
   const url = useMedia(content.source);
   const poster = useMedia(content.thumbnail, { width: 480, height: 480 });
   return (
     <div className="msg-video">
       {url ? (
-        <video src={url} poster={poster} controls preload="none" />
+        <video src={url} poster={poster} controls preload="none" style={{ width: size.width, maxWidth: "100%", height: "auto", aspectRatio: `${size.width} / ${size.height}` }} />
       ) : (
-        <div className="msg-media__img msg-media__blur" style={{ width: 320, height: 200, backgroundImage: blur ? `url(${blur})` : undefined, backgroundSize: "cover" }} />
+        <div className="msg-media__img msg-media__blur" style={{ width: size.width, height: size.height, backgroundImage: blur ? `url(${blur})` : undefined, backgroundSize: "cover" }} />
       )}
       {content.duration != null && (
         <span className="msg-video__badge">{formatDuration(content.duration)}</span>
@@ -520,26 +553,34 @@ function ReceiptStackInner({ entry, vm }: { entry: EventEntry; vm: TimelineViewM
   const [open, setOpen] = useState(false);
   const shown = entry.readReceipts.slice(0, 3);
   const overflow = entry.readReceipts.length - shown.length;
-  const names = entry.readReceipts.map((uid) => vm.displayNameFor(uid));
+  // Only resolve names while the popover shows: displayNameFor scans the loaded
+  // entries, which is too costly to run on every row render during scroll.
+  const names = open ? entry.readReceipts.map((uid) => vm.displayNameFor(uid)) : [];
   return (
-    <div
-      className="receipts"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
-      {shown.map((uid, i) => (
-        <ReceiptAvatar key={uid} userId={uid} first={i === 0} vm={vm} />
-      ))}
-      {overflow > 0 && <span className="receipts__overflow">+{overflow}</span>}
-      {open && (
-        // Immediate, all-at-once list of everyone who read.
-        <div className="receipts-pop" role="tooltip">
-          <div className="receipts-pop__title">Read by</div>
-          {names.map((n, i) => (
-            <div className="receipts-pop__row" key={`${n}-${i}`}>{n}</div>
-          ))}
-        </div>
-      )}
+    <div className="receipts">
+      <div
+        className="receipts__cluster"
+        tabIndex={0}
+        aria-label={open ? `Read by ${names.join(", ")}` : `Read by ${entry.readReceipts.length}`}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+      >
+        {shown.map((uid, i) => (
+          <ReceiptAvatar key={uid} userId={uid} first={i === 0} vm={vm} />
+        ))}
+        {overflow > 0 && <span className="receipts__overflow">+{overflow}</span>}
+        {open && (
+          // Immediate, all-at-once list of everyone who read.
+          <div className="receipts-pop" role="tooltip">
+            <div className="receipts-pop__title">Read by</div>
+            {names.map((n, i) => (
+              <div className="receipts-pop__row" key={`${n}-${i}`}>{n}</div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -598,9 +639,29 @@ function ContextMenu(props: Props & { x: number; y: number; onClose: () => void 
     const close = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
     };
+    // Escape/scroll/blur dismissal, matching RoomMenu. stopPropagation on
+    // Escape so it doesn't also clear composer reply state.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
     document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("scroll", onClose, true);
+    window.addEventListener("blur", onClose);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("scroll", onClose, true);
+      window.removeEventListener("blur", onClose);
+    };
   }, [onClose]);
+  // Move focus into the menu so keyboard users can reach the items.
+  useEffect(() => {
+    ref.current?.querySelector("button")?.focus();
+  }, []);
 
   const session = useSession();
   const customEmoji = useCustomEmoji(session);
@@ -614,7 +675,7 @@ function ContextMenu(props: Props & { x: number; y: number; onClose: () => void 
   };
 
   return (
-    <div className="ctx-menu" style={{ left: pos.left, top: pos.top }} ref={ref}>
+    <div className="ctx-menu" role="menu" style={{ left: pos.left, top: pos.top }} ref={ref}>
       {/* Usage-based top-5 quick reactions plus "More Reactions" (any emoji or
           custom emote, reacting via its mxc url). Records usage so the quick
           set adapts. */}
@@ -624,27 +685,27 @@ function ContextMenu(props: Props & { x: number; y: number; onClose: () => void 
         onClose={onClose}
       />
       {entry.canBeRepliedTo && (
-        <button className="ctx-menu__item" onClick={act(() => onReply(entry))}>
+        <button role="menuitem" className="ctx-menu__item" onClick={act(() => onReply(entry))}>
           <Icon name="reply" /> Reply
         </button>
       )}
       {canEdit && (
-        <button className="ctx-menu__item" onClick={act(() => onEdit(entry))}>
+        <button role="menuitem" className="ctx-menu__item" onClick={act(() => onEdit(entry))}>
           <Icon name="edit" /> Edit Message
         </button>
       )}
       {entry.eventId && (
-        <button className="ctx-menu__item" onClick={act(() => onOpenThread(entry.eventId!))}>
+        <button role="menuitem" className="ctx-menu__item" onClick={act(() => onOpenThread(entry.eventId!))}>
           <Icon name="thread" size={14} /> Reply in Thread
         </button>
       )}
       {isText && "body" in entry.content && (
-        <button className="ctx-menu__item" onClick={act(() => void navigator.clipboard?.writeText((entry.content as { body: string }).body))}>
+        <button role="menuitem" className="ctx-menu__item" onClick={act(() => void navigator.clipboard?.writeText((entry.content as { body: string }).body))}>
           <Icon name="copy" size={15} /> Copy Text
         </button>
       )}
       {entry.eventId && (
-        <button className="ctx-menu__item" onClick={act(() => void navigator.clipboard?.writeText(entry.eventId!))}>
+        <button role="menuitem" className="ctx-menu__item" onClick={act(() => void navigator.clipboard?.writeText(entry.eventId!))}>
           <Icon name="hash" size={15} /> Copy Event ID
         </button>
       )}
@@ -652,6 +713,7 @@ function ContextMenu(props: Props & { x: number; y: number; onClose: () => void 
         <>
           {c.type === "image" && (
             <button
+              role="menuitem"
               className="ctx-menu__item"
               onClick={act(() => void copyImage(session.mediaLoader, c.source, c.mimetype))}
             >
@@ -659,6 +721,7 @@ function ContextMenu(props: Props & { x: number; y: number; onClose: () => void 
             </button>
           )}
           <button
+            role="menuitem"
             className="ctx-menu__item"
             onClick={act(() =>
               void saveMedia(session.mediaLoader, c.source, {
@@ -671,12 +734,13 @@ function ContextMenu(props: Props & { x: number; y: number; onClose: () => void 
           </button>
         </>
       )}
-      <button className="ctx-menu__item" onClick={act(() => modals.openProfile(entry.sender))}>
+      <button role="menuitem" className="ctx-menu__item" onClick={act(() => modals.openProfile(entry.sender))}>
         <Icon name="people" size={15} /> View Profile
       </button>
       {entry.eventId &&
         (entry.isOwn ? vm.state.canRedactOwn : vm.state.canRedactOther) && (
           <button
+            role="menuitem"
             className="ctx-menu__item ctx-menu__item--danger"
             onClick={act(() => {
               if (!preferences.get("confirmBeforeDeleting" as never) || window.confirm("Delete this message?")) {
@@ -689,6 +753,7 @@ function ContextMenu(props: Props & { x: number; y: number; onClose: () => void 
         )}
       {!entry.isOwn && ownUserId && (
         <button
+          role="menuitem"
           className="ctx-menu__item ctx-menu__item--danger"
           onClick={act(() => {
             const reason = window.prompt("Report reason?");

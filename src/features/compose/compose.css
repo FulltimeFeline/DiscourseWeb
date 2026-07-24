@@ -200,6 +200,14 @@
   cursor: pointer;
 }
 
+.cmp-btn:hover:not(:disabled) {
+  background: var(--bg-active);
+}
+
+.cmp-btn:active:not(:disabled) {
+  filter: brightness(0.92);
+}
+
 .cmp-btn:disabled {
   opacity: 0.5;
   cursor: default;
@@ -209,6 +217,10 @@
   background: var(--accent);
   color: var(--text-on-accent, #fff);
   border-color: transparent;
+}
+
+.cmp-btn--primary:hover:not(:disabled) {
+  background: var(--accent-strong);
 }
 
 /* Invite sheet header (reuses cmp-panel/cmp-user/cmp-results). */

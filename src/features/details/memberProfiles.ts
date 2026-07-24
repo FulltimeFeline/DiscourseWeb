@@ -112,22 +112,23 @@ export function useMemberProfile(
   userId: string,
 ): MemberProfile | undefined {
   const [, setVersion] = useState(0);
+  const entry = entryFor(session, roomId);
+  const renderedVersion = entry.version;
 
   useEffect(() => {
-    const entry = entryFor(session, roomId);
     let alive = true;
     const notify = () => {
       if (alive) setVersion((v) => v + 1);
     };
     entry.listeners.add(notify);
-    // If the load already finished before we subscribed, re-read now.
-    if (entry.version > 0) notify();
+    // If the load finished between the render and the effect, re-read now.
+    if (entry.version !== renderedVersion) notify();
     return () => {
       alive = false;
       entry.listeners.delete(notify);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, roomId]);
 
-  const entry = entryFor(session, roomId);
   return entry.profiles.get(userId);
 }

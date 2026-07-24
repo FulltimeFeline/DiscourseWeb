@@ -5,6 +5,7 @@
 // capsule + active-call participant strip. All derived flags come from the
 // value-type RoomSummary via the mapper helpers so they match the rail exactly.
 
+import { memo } from "react";
 import type { RoomSummary } from "@/models/types";
 import {
   badgeCount,
@@ -49,21 +50,29 @@ function a11yValue(room: RoomSummary): string {
   return "";
 }
 
-export function RoomRow({
-  room,
-  selected,
-  presenceDot,
-  onSelect,
-  onContextMenu,
-  onHover,
-}: {
+interface RoomRowProps {
   room: RoomSummary;
   selected: boolean;
   presenceDot?: "online" | "unavailable" | "offline";
   onSelect: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
   onHover?: () => void;
-}) {
+}
+
+// The room list rebuilds its `rooms` array on every 100 ms sync flush, but the
+// individual RoomSummary objects keep their identity when unchanged (the VM
+// skips no-op updates). So memoize on the *data* props and ignore the row
+// callbacks (the parent hands fresh closures each render, but everything they
+// capture — room id, selection — is already in the compared props). This stops
+// the whole visible list reconciling on every flush / presence tick.
+export const RoomRow = memo(function RoomRow({
+  room,
+  selected,
+  presenceDot,
+  onSelect,
+  onContextMenu,
+  onHover,
+}: RoomRowProps) {
   const unread = hasUnread(room) || selected;
   const count = badgeCount(room);
   const showCapsule = hasUnread(room) && count > 0;
@@ -74,6 +83,7 @@ export function RoomRow({
   const session = useSession();
   const presence = usePresence(session, dmUserId);
   const dot = presence?.state ?? presenceDot;
+  const preview = previewLine(room);
 
   return (
     <button
@@ -82,8 +92,7 @@ export function RoomRow({
       onClick={onSelect}
       onMouseEnter={onHover}
       onContextMenu={onContextMenu}
-      role="option"
-      aria-selected={selected}
+      aria-current={selected ? "true" : undefined}
       aria-label={`${room.name}${value ? `, ${value}` : ""}`}
     >
       <div className="rl-row__avatar">
@@ -95,7 +104,10 @@ export function RoomRow({
 
       <div className="rl-row__body">
         <div className="rl-row__top">
-          <span className={`rl-row__name${unread ? " rl-row__name--unread" : ""}`}>
+          <span
+            className={`rl-row__name${unread ? " rl-row__name--unread" : ""}`}
+            title={room.name || "Unnamed"}
+          >
             {room.name || "Unnamed"}
           </span>
           {room.isVideoRoom && (
@@ -124,8 +136,9 @@ export function RoomRow({
         <div className="rl-row__bottom">
           <span
             className={`rl-row__preview${unread ? " rl-row__preview--unread" : ""}`}
+            title={preview}
           >
-            {previewLine(room)}
+            {preview}
           </span>
           {showCapsule && (
             <span
@@ -139,7 +152,9 @@ export function RoomRow({
       </div>
     </button>
   );
-}
+},
+(a, b) =>
+  a.room === b.room && a.selected === b.selected && a.presenceDot === b.presenceDot);
 
 // Overlapping avatars of who's currently in a room's call: size-18 avatars,
 // -6px overlap, a background-colored ring, and a "+N" overflow. We only have

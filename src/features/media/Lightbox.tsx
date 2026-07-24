@@ -96,22 +96,48 @@ export function Lightbox({ loader, source, mimetype, fallbackUrl, filename, kind
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  const boxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const prev = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    boxRef.current?.focus();
+    return () => prev?.focus();
+  }, []);
+
   return (
-    <div className="dc-lightbox" onClick={onClose}>
+    <div
+      className="dc-lightbox"
+      role="dialog"
+      aria-modal="true"
+      aria-label={filename ?? "Media viewer"}
+      tabIndex={-1}
+      ref={boxRef}
+      onClick={onClose}
+    >
       <div className="dc-lightbox-bar" onClick={(e) => e.stopPropagation()}>
         {kind === "image" && (
-          <button className="dc-lightbox-btn" onClick={() => void copy()} title="Copy image">
+          <button
+            className="dc-lightbox-btn"
+            onClick={() => void copy()}
+            title="Copy image"
+            aria-label="Copy image"
+            disabled={!url}
+          >
             <Icon name={copied ? "check" : "copy"} size={18} />
           </button>
         )}
-        <button className="dc-lightbox-btn" onClick={save} title="Save">
+        <button className="dc-lightbox-btn" onClick={save} title="Save" aria-label="Save" disabled={!url}>
           <Icon name="file" size={18} />
         </button>
-        <button className="dc-lightbox-btn" onClick={onClose} title="Close">
+        <button className="dc-lightbox-btn" onClick={onClose} title="Close" aria-label="Close">
           <Icon name="x" size={18} />
         </button>
       </div>
       {loading && !url && <div className="dc-spinner light" />}
+      {!loading && !url && (
+        <div className="dc-lightbox-error" style={{ color: "var(--text-secondary)", fontSize: 14 }}>
+          Couldn&rsquo;t load this media
+        </div>
+      )}
       {url &&
         (kind === "video" ? (
           <video

@@ -69,6 +69,8 @@ export class RoomListViewModel extends ViewModel<RoomListState> {
   /** id → summary. The authoritative store; `rooms` is derived+sorted from it. */
   private summaries = new Map<string, RoomSummary>();
   private roomIndex = new Map<string, number>();
+  /** Ids whose details have been loaded via refreshDetails at least once. */
+  private populated = new Set<string>();
 
   // Retained SDK handles (must not be GC'd).
   private roomList?: RoomListInterface;
@@ -212,11 +214,15 @@ export class RoomListViewModel extends ViewModel<RoomListState> {
   private applyDiffs(updates: RoomListEntriesUpdate[]): void {
     const T = RoomListEntriesUpdate_Tags;
     let structureChanged = false;
+    const touched = new Set<string>();
 
     for (const u of updates) {
       switch (u.tag) {
         case T.Append: {
-          for (const room of u.inner.values) this.pushRoom(room);
+          for (const room of u.inner.values) {
+            this.pushRoom(room);
+            touched.add(room.id());
+          }
           structureChanged = true;
           break;
         }
@@ -228,11 +234,13 @@ export class RoomListViewModel extends ViewModel<RoomListState> {
         }
         case T.PushFront: {
           this.insertRoom(0, u.inner.value);
+          touched.add(u.inner.value.id());
           structureChanged = true;
           break;
         }
         case T.PushBack: {
           this.pushRoom(u.inner.value);
+          touched.add(u.inner.value.id());
           structureChanged = true;
           break;
         }
@@ -248,11 +256,13 @@ export class RoomListViewModel extends ViewModel<RoomListState> {
         }
         case T.Insert: {
           this.insertRoom(u.inner.index, u.inner.value);
+          touched.add(u.inner.value.id());
           structureChanged = true;
           break;
         }
         case T.Set: {
           this.setAt(u.inner.index, u.inner.value);
+          touched.add(u.inner.value.id());
           structureChanged = true;
           break;
         }
@@ -269,6 +279,7 @@ export class RoomListViewModel extends ViewModel<RoomListState> {
         }
         case T.Reset: {
           this.ffiRooms = [...u.inner.values];
+          for (const room of this.ffiRooms) touched.add(room.id());
           structureChanged = true;
           break;
         }
@@ -284,8 +295,12 @@ export class RoomListViewModel extends ViewModel<RoomListState> {
       this.pruneSummaries();
       this.rebuildIndex();
       this.publish();
-      // Load details for any room whose summary isn't populated yet.
-      for (const room of this.ffiRooms) void this.refreshDetails(room);
+      // Load details for rooms this batch touched or never populated; rooms
+      // merely moved positionally keep their existing summary.
+      for (const room of this.ffiRooms) {
+        const id = room.id();
+        if (touched.has(id) || !this.populated.has(id)) void this.refreshDetails(room);
+      }
     }
   }
 
@@ -339,6 +354,9 @@ export class RoomListViewModel extends ViewModel<RoomListState> {
     for (const id of [...this.summaries.keys()]) {
       if (!live.has(id)) this.summaries.delete(id);
     }
+    for (const id of [...this.populated]) {
+      if (!live.has(id)) this.populated.delete(id);
+    }
   }
 
   // --- detail population (batched) ------------------------------------------
@@ -377,6 +395,7 @@ export class RoomListViewModel extends ViewModel<RoomListState> {
         }
       }
     }
+    this.populated.add(id);
     this.enqueue(id, next);
   }
 

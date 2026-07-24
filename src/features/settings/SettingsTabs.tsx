@@ -23,20 +23,6 @@ export function AppearanceTab() {
     <>
       <Section title="Appearance">
         <Row
-          label="Theme"
-          control={
-            <Segmented
-              value={p.theme}
-              onChange={(theme) => preferences.patch({ theme })}
-              options={[
-                { value: "system", label: "Automatic" },
-                { value: "light", label: "Light" },
-                { value: "dark", label: "Dark" },
-              ]}
-            />
-          }
-        />
-        <Row
           label="Accent Color"
           control={
             <div className="dm-swatches">

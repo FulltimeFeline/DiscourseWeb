@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles/globals.css";
-import { uniffiInitAsync } from "@/matrix";
+import { ensureSdkReady } from "@/matrix/ready";
 import { App } from "./App";
 import { isSsoCallbackPopup } from "@/features/auth/sso";
 
@@ -41,24 +41,12 @@ if (isMobileDevice()) {
 
 const root = createRoot(document.getElementById("root") as HTMLElement);
 
-// The Matrix SDK ships as a ~48MB wasm module. Paint a loading state, then
-// initialise it once (registers uniffi callbacks/checksums), then mount. Every
-// SDK type is off-limits until this resolves.
-root.render(
-  <div className="boot">
-    <div className="boot__spinner" />
-    <div>Loading Discourse…</div>
-  </div>,
-);
-
-try {
-  await uniffiInitAsync();
-  root.render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
-} catch (err) {
+// Start loading the ~48MB SDK wasm right away (streaming download + compile),
+// but DON'T block the first paint on it. The login form and app shell render
+// immediately; the only code that touches an SDK type — building/restoring a
+// client — awaits `ensureSdkReady()` in clientBuilder, so the wasm download
+// overlaps with the user reading the login screen instead of freezing it.
+ensureSdkReady().catch((err) => {
   console.error("Failed to initialise the Matrix SDK", err);
   root.render(
     <div className="boot">
@@ -66,6 +54,23 @@ try {
       <div style={{ color: "var(--text-tertiary)", fontSize: "0.85em" }}>
         {String(err)}
       </div>
+      <button
+        onClick={() => window.location.reload()}
+        style={{
+          padding: "6px 18px",
+          borderRadius: 8,
+          background: "var(--accent)",
+          color: "var(--accent-contrast)",
+        }}
+      >
+        Retry
+      </button>
     </div>,
   );
-}
+});
+
+root.render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);

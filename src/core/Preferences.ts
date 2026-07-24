@@ -63,7 +63,10 @@ function load(): Prefs {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return { ...DEFAULTS };
-    return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Prefs>) };
+    const prefs = { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Prefs>) };
+    // The light theme option is disabled; migrate previously stored values.
+    if (prefs.theme === "light") prefs.theme = "dark";
+    return prefs;
   } catch {
     return { ...DEFAULTS };
   }
@@ -89,12 +92,9 @@ class PreferencesStore extends Store<Prefs> {
   /** Reflect appearance prefs onto the document (theme, accent, density, scale). */
   private apply(p: Prefs): void {
     const root = document.documentElement;
-    const resolved =
-      p.theme === "system"
-        ? window.matchMedia("(prefers-color-scheme: light)").matches
-          ? "light"
-          : "dark"
-        : p.theme;
+    // Light mode is disabled for now: "system" resolves to dark instead of
+    // following the OS. Restore the matchMedia branch to re-enable it.
+    const resolved = p.theme === "system" ? "dark" : p.theme;
     root.setAttribute("data-theme", resolved);
     root.setAttribute("data-density", p.messageDensity);
     root.style.setProperty("--accent", p.accent);

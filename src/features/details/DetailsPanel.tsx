@@ -424,22 +424,32 @@ function MemberMenu({
 }) {
   useEffect(() => {
     const close = () => onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
     window.addEventListener("click", close);
     window.addEventListener("resize", close);
+    window.addEventListener("keydown", onKey, true);
     return () => {
       window.removeEventListener("click", close);
       window.removeEventListener("resize", close);
+      window.removeEventListener("keydown", onKey, true);
     };
   }, [onClose]);
   return (
     <div
       className="member-menu"
+      role="menu"
       style={{ left: Math.min(x, window.innerWidth - 200), top: Math.min(y, window.innerHeight - 40 - items.length * 34) }}
       onClick={(e) => e.stopPropagation()}
     >
       {items.map((it) => (
         <button
           key={it.key}
+          role="menuitem"
           className={`member-menu__item${it.danger ? " member-menu__item--danger" : ""}`}
           onClick={() => {
             it.onSelect();

@@ -1,26 +1,30 @@
 // React hooks for resolving Matrix media (MediaRef to a browser object URL) via
 // the session MediaLoader, with a blurhash placeholder while it loads.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "@/app/context";
 import { blurhashToDataURL } from "@/core/blurhash";
 import type { MediaRef } from "@/models/types";
 
 /**
- * Resolve a MediaRef to an object URL. Returns undefined until loaded. `thumb`
- * requests a server-side thumbnail at the given pixel size.
+ * Resolve a MediaRef to an object URL, reporting terminal failure. Returns
+ * `{ url: undefined, failed: false }` while loading, `failed: true` when the
+ * load resolved without a URL. `thumb` requests a server-side thumbnail at the
+ * given pixel size.
  */
-export function useMedia(
+export function useMediaWithStatus(
   ref: MediaRef | undefined,
   thumb?: { width: number; height: number },
-): string | undefined {
+): { url: string | undefined; failed: boolean } {
   const session = useSession();
   const mxc = ref?.mxc;
   const [url, setUrl] = useState<string | undefined>(() =>
     mxc ? session.mediaLoader.cached(mxc, thumb) : undefined,
   );
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    setFailed(false);
     if (!ref?.mxc && !ref?.source) {
       setUrl(undefined);
       return;
@@ -34,7 +38,9 @@ export function useMedia(
     void session.mediaLoader
       .load({ source: ref.source, mxc: ref.mxc, thumbnail: thumb })
       .then((u) => {
-        if (!cancelled) setUrl(u);
+        if (cancelled) return;
+        setUrl(u);
+        if (u === undefined) setFailed(true);
       });
     return () => {
       cancelled = true;
@@ -42,14 +48,26 @@ export function useMedia(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ref?.mxc, thumb?.width, thumb?.height]);
 
-  return url;
+  return { url, failed };
 }
 
-/** A blurhash data-URL placeholder, memoised by hash + size. */
+/**
+ * Resolve a MediaRef to an object URL. Returns undefined until loaded. `thumb`
+ * requests a server-side thumbnail at the given pixel size.
+ */
+export function useMedia(
+  ref: MediaRef | undefined,
+  thumb?: { width: number; height: number },
+): string | undefined {
+  return useMediaWithStatus(ref, thumb).url;
+}
+
+/**
+ * A blurhash data-URL placeholder. Decoding is pure and globally cached by
+ * hash+size, so compute it synchronously with `useMemo`: the placeholder is
+ * present on the first paint (no undefined→url flash and no extra render that
+ * an effect would cause), which keeps image rows from reflowing as you scroll.
+ */
 export function useBlurhash(hash: string | undefined, width = 32, height = 32): string | undefined {
-  const [url, setUrl] = useState<string | undefined>(undefined);
-  useEffect(() => {
-    setUrl(blurhashToDataURL(hash, width, height));
-  }, [hash, width, height]);
-  return url;
+  return useMemo(() => blurhashToDataURL(hash, width, height), [hash, width, height]);
 }

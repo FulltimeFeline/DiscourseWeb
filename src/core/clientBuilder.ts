@@ -21,6 +21,7 @@ import {
   SlidingSyncVersionBuilder,
   initPlatform,
 } from "@/matrix";
+import { ensureSdkReady } from "@/matrix/ready";
 
 let platformReady = false;
 
@@ -97,6 +98,9 @@ export async function createAuthenticationClient(
   storeName: string,
   storeId: string,
 ): Promise<AuthClient> {
+  // The UI renders before the SDK wasm finishes loading; block here (the first
+  // point that actually touches an SDK type) until it's ready.
+  await ensureSdkReady();
   initializePlatformOnce();
   const passphrase = randomPassphrase();
   const client = await baseBuilder({
@@ -117,6 +121,9 @@ export async function restoreClient(
   storeName: string,
   sessionDelegate: ClientSessionDelegate,
 ): Promise<ClientInterface> {
+  // Wait for the SDK wasm (loaded in the background since boot) before the first
+  // SDK call, so session restore can start as soon as the engine is ready.
+  await ensureSdkReady();
   initializePlatformOnce();
   const client = await baseBuilder({
     sessionDelegate,

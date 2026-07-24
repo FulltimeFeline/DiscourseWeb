@@ -15,6 +15,7 @@ import {
 import { runSsoPopup, ssoRedirectUrl } from "./sso";
 
 const DEVICE_NAME = "Discourse (Web)";
+const AUTH_ERROR_KEY = "discourse.authError";
 
 export interface LoginMethods {
   password: boolean;
@@ -39,6 +40,8 @@ export class LoginViewModel extends ViewModel<LoginSnapshot> {
   private storeId?: string;
 
   constructor(private app: AppState) {
+    const pendingError = sessionStorage.getItem(AUTH_ERROR_KEY);
+    if (pendingError) sessionStorage.removeItem(AUTH_ERROR_KEY);
     super({
       stage: "server",
       homeserver: "matrix.org",
@@ -47,7 +50,7 @@ export class LoginViewModel extends ViewModel<LoginSnapshot> {
       methods: null,
       serverUrl: null,
       busy: false,
-      error: null,
+      error: pendingError,
     });
   }
 
@@ -186,6 +189,11 @@ export async function completeOidcCallbackIfPresent(app: AppState): Promise<bool
     return true;
   } catch (e) {
     console.error("OIDC callback failed", e);
+    try {
+      sessionStorage.setItem(AUTH_ERROR_KEY, "Sign-in couldn't be completed. Please try again.");
+    } catch {
+      /* storage unavailable */
+    }
     return false;
   }
 }

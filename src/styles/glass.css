@@ -92,7 +92,7 @@ body .reaction-palette .reaction-palette__more {
   }
   body .shell__rail {
     /* Floating glass dock — same fill as the composer glass. */
-    background: rgba(60, 62, 72, 0.4);
+    background: var(--glass-fill-strong);
     -webkit-backdrop-filter: blur(22px) saturate(1.5);
     backdrop-filter: blur(22px) saturate(1.5);
     border: 1px solid var(--glass-edge);
@@ -104,8 +104,7 @@ body .reaction-palette .reaction-palette__more {
     backdrop-filter: blur(12px);
   }
   body .dm-scrim,
-  body .rl-sheet-scrim,
-  body .qs-scrim {
+  body .rl-sheet-scrim {
     -webkit-backdrop-filter: blur(2px);
     backdrop-filter: blur(2px);
   }

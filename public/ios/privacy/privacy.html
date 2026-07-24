@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#1c1c1e" />
+    <title>Privacy Policy · Discourse for iOS</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #ffffff;
+        --fg: #1c1c1e;
+        --muted: #6b6b70;
+        --card: #f5f5f7;
+        --border: #e2e2e6;
+        --accent: #0a84ff;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1c1c1e;
+          --fg: #f5f5f7;
+          --muted: #98989f;
+          --card: #2a2a2c;
+          --border: #38383a;
+          --accent: #0a84ff;
+        }
+      }
+      * { box-sizing: border-box; }
+      html { -webkit-text-size-adjust: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
+      main { max-width: 720px; margin: 0 auto; padding: 48px 24px 96px; }
+      header { display: flex; align-items: center; gap: 16px; margin-bottom: 40px; }
+      header img { width: 56px; height: 56px; border-radius: 13px; }
+      header .title { font-size: 15px; color: var(--muted); }
+      header .title strong { display: block; font-size: 22px; color: var(--fg); }
+      h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 8px; }
+      .updated { color: var(--muted); font-size: 15px; margin: 0 0 40px; }
+      h2 { font-size: 21px; font-weight: 650; letter-spacing: -0.01em; margin: 40px 0 12px; }
+      p { margin: 0 0 16px; }
+      ul { margin: 0 0 16px; padding-left: 22px; }
+      li { margin: 0 0 8px; }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px 24px;
+        margin: 24px 0;
+      }
+      strong { font-weight: 650; }
+      footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
+      footer a { color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/icon.png" alt="Discourse icon" />
+        <div class="title"><strong>Discourse for iOS</strong>A Matrix chat client for iPhone &amp; iPad</div>
+      </header>
+
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated: July 23, 2026</p>
+
+      <p>
+        Discourse for iOS is a chat client for the <a href="https://matrix.org" rel="noopener">Matrix</a>
+        open communication network. This policy explains what happens to your data when you use the app on
+        your iPhone or iPad. The short version: Discourse has no servers of its own and collects nothing
+        about you.
+      </p>
+
+      <div class="card">
+        <p style="margin:0"><strong>We don't run a backend.</strong> Discourse connects directly to
+        whichever Matrix homeserver you sign in to. Your messages, contacts, and account live on that
+        homeserver — operated by you or by whoever runs it — not with us. We never see your traffic.</p>
+      </div>
+
+      <h2>What the app stores</h2>
+      <p>Everything Discourse keeps is stored <strong>locally on your device</strong>:</p>
+      <ul>
+        <li>Your login session and end-to-end encryption keys, held in the iOS keychain.</li>
+        <li>A local cache of your rooms, messages, and media so the app works quickly and offline.</li>
+        <li>Your in-app preferences and settings.</li>
+      </ul>
+      <p>This data never leaves your device except to communicate with the homeserver you chose.
+      Signing out of an account or deleting the app clears its local data.</p>
+
+      <h2>What we collect</h2>
+      <p><strong>Nothing.</strong> Discourse contains no analytics, no advertising, no tracking, and no
+      third-party SDKs that phone home. We do not have accounts, servers, or logs, so there is no
+      personal information for us to collect, sell, or share.</p>
+
+      <h2>Your homeserver</h2>
+      <p>Because Discourse talks directly to your Matrix homeserver, the operator of that homeserver
+      handles your account data and is governed by <em>their</em> privacy policy. If you use a public
+      homeserver such as matrix.org, review that provider's terms. In end-to-end encrypted rooms, message
+      content is encrypted on your device and the homeserver cannot read it.</p>
+
+      <h2>Push notifications</h2>
+      <p>If you enable notifications, your homeserver sends a push through a Matrix push gateway to Apple's
+      Push Notification service, which delivers it to your device. To keep message contents private, pushes
+      are configured to carry only the identifiers needed to fetch and decrypt the message on your device;
+      the notification text is assembled locally by the app. Apple's handling of push tokens is covered by
+      <a href="https://www.apple.com/legal/privacy/" rel="noopener">Apple's Privacy Policy</a>.</p>
+
+      <h2>Media</h2>
+      <p>Images, files, and other media you view or send are transferred directly between your device and
+      your homeserver. Media you open is cached locally to avoid re-downloading.</p>
+
+      <h2>Children</h2>
+      <p>Discourse is not directed at children under 13 and does not knowingly collect information from them.</p>
+
+      <h2>Changes</h2>
+      <p>If this policy changes, the updated version will be posted on this page with a new date above.</p>
+
+      <h2>Contact</h2>
+      <p>Questions about privacy? Email
+      <a href="mailto:support@fulltimefeline.com">support@fulltimefeline.com</a>.</p>
+
+      <footer>
+        Discourse for iOS · <a href="/ios/support">Support</a> · <a href="/ios/privacy">Privacy</a>
+      </footer>
+    </main>
+  </body>
+</html>

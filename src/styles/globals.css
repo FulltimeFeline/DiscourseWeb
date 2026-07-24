@@ -141,3 +141,41 @@ a:hover {
   line-height: 1.5;
   color: var(--text-secondary, #a0a0a8);
 }
+
+/* Shared enter animations for overlay surfaces (scrims fade, panels scale in). */
+@keyframes overlay-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+.dm-scrim,
+.qs-scrim,
+.roomsearch-scrim,
+.rl-sheet-scrim,
+.dc-lightbox {
+  animation: overlay-fade 0.14s ease-out;
+}
+.dm-modal,
+.dm-settings,
+.qs-panel,
+.roomsearch,
+.rl-sheet {
+  animation: panel-in 0.16s ease-out;
+}
+
+/* Reduce motion (in-app toggle or system prefers-reduced-motion): collapse all
+   animations/transitions except progress spinners, which convey loading state. */
+[data-reduce-motion="true"] *:not(.dm-spinner):not(.dc-spinner):not(.boot__spinner),
+[data-reduce-motion="true"] *:not(.dm-spinner):not(.dc-spinner):not(.boot__spinner)::before,
+[data-reduce-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

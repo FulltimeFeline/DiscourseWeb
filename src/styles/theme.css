@@ -3,9 +3,9 @@
    rounding. Feature code reads these variables only — never hard-coded colours. */
 
 :root {
-  --accent: #c65cf5;
-  --accent-strong: #b13ee6;
-  --accent-soft: rgba(198, 92, 245, 0.16);
+  --accent: #9059f1;
+  --accent-strong: #7b3be2;
+  --accent-soft: rgba(144, 89, 241, 0.16);
   --accent-contrast: #ffffff;
   /* Gradient used for the Home glyph + accent fills. */
   /* Derived from the SELECTED accent so it follows the accent preference. */

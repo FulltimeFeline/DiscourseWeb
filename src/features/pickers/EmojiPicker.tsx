@@ -167,6 +167,7 @@ export function EmojiPicker({ customEmoji, onPick, allowCustom = true }: EmojiPi
           type="text"
           placeholder="Search emoji"
           value={query}
+          autoFocus
           autoCorrect="off"
           autoCapitalize="none"
           spellCheck={false}

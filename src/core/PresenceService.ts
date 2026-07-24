@@ -12,7 +12,7 @@
 // `usePresence(userId)` subscribes to the whole map but returns the per-user
 // entry, so React only re-renders the dots whose entry identity changed.
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { Store } from "./reactive";
 import { preferences } from "./Preferences";
 import type { MatrixSession } from "./MatrixSession";
@@ -53,7 +53,16 @@ export class PresenceService {
   /** Latched true on first 403: the server has presence disabled forever. */
   private unsupported = false;
 
-  constructor(private readonly session: MatrixSession) {}
+  /** Pause the poll while the tab is hidden; resume (with an immediate tick)
+   *  when it's foregrounded again. */
+  private readonly onVisibility = (): void => {
+    if (document.visibilityState === "hidden") this.pause();
+    else this.resume();
+  };
+
+  constructor(private readonly session: MatrixSession) {
+    document.addEventListener("visibilitychange", this.onVisibility);
+  }
 
   get isUnsupported(): boolean {
     return this.unsupported;
@@ -102,6 +111,7 @@ export class PresenceService {
   }
 
   dispose(): void {
+    document.removeEventListener("visibilitychange", this.onVisibility);
     this.stopPolling();
     this.watchers.clear();
     this.inFlight.clear();
@@ -151,7 +161,22 @@ export class PresenceService {
         return;
       }
       if (!result) return; // transient failure / unparsable: leave entry as-is
-      this.store.update((prev) => ({ ...prev, [userId]: result }));
+      // Preserve object identity when nothing a subscriber renders has changed:
+      // a poll produces a fresh object every time (new fetchedAt), which would
+      // otherwise re-render every watching row on every tick. Keep the previous
+      // object (just refresh its freshness stamp so we don't immediately refetch)
+      // unless a displayed field actually changed.
+      const prev = this.store.value[userId];
+      if (
+        prev &&
+        prev.state === result.state &&
+        prev.lastActiveAgo === result.lastActiveAgo &&
+        prev.statusMessage === result.statusMessage
+      ) {
+        prev.fetchedAt = result.fetchedAt;
+        return;
+      }
+      this.store.update((p) => ({ ...p, [userId]: result }));
     } finally {
       this.inFlight.delete(userId);
     }
@@ -226,7 +251,7 @@ export function disposePresenceService(session: MatrixSession): void {
 export function presenceColor(state: PresenceState): string {
   switch (state) {
     case "online":
-      return "#22c55e";
+      return "var(--presence-online)";
     case "unavailable":
       return "#f59e0b";
     default:
@@ -265,7 +290,15 @@ export function usePresence(
   userId: string | undefined,
 ): UserPresence | undefined {
   const svc = presenceServiceFor(session);
-  const snapshot = useSyncExternalStore(svc.subscribe, svc.getSnapshot);
+  // Select only this user's entry. useSyncExternalStore re-renders only when the
+  // returned value's identity changes, so a poll for some OTHER user (or for a
+  // room with no DM user at all) no longer re-renders this row — previously every
+  // RoomRow subscribed to the whole snapshot and re-rendered on every tick.
+  const getSnapshot = useCallback(
+    () => (userId ? svc.getSnapshot()[userId] : undefined),
+    [svc, userId],
+  );
+  const presence = useSyncExternalStore(svc.subscribe, getSnapshot);
 
   useEffect(() => {
     if (!userId) return;
@@ -273,7 +306,7 @@ export function usePresence(
     return () => svc.unregister(userId);
   }, [svc, userId]);
 
-  return userId ? snapshot[userId] : undefined;
+  return presence;
 }
 
 /** Subscribe to presence for many users at once (e.g. the member roster). */

@@ -160,6 +160,12 @@ function NewDmForm({ onClose }: { onClose: () => void }) {
           setTerm(e.target.value);
           search(e.target.value);
         }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && results.length > 0 && !busy) {
+            e.preventDefault();
+            void start(results[0].userId);
+          }
+        }}
       />
       <div className="cmp-results" role="listbox">
         {loading && <div className="cmp-hint">Searching…</div>}

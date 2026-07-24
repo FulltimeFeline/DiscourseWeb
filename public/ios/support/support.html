@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#1c1c1e" />
+    <title>Support · Discourse for iOS</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #ffffff;
+        --fg: #1c1c1e;
+        --muted: #6b6b70;
+        --card: #f5f5f7;
+        --border: #e2e2e6;
+        --accent: #0a84ff;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1c1c1e;
+          --fg: #f5f5f7;
+          --muted: #98989f;
+          --card: #2a2a2c;
+          --border: #38383a;
+          --accent: #0a84ff;
+        }
+      }
+      * { box-sizing: border-box; }
+      html { -webkit-text-size-adjust: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
+      main { max-width: 720px; margin: 0 auto; padding: 48px 24px 96px; }
+      header { display: flex; align-items: center; gap: 16px; margin-bottom: 40px; }
+      header img { width: 56px; height: 56px; border-radius: 13px; }
+      header .title { font-size: 15px; color: var(--muted); }
+      header .title strong { display: block; font-size: 22px; color: var(--fg); }
+      h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 8px; }
+      .lede { color: var(--muted); font-size: 17px; margin: 0 0 40px; }
+      h2 { font-size: 21px; font-weight: 650; letter-spacing: -0.01em; margin: 40px 0 12px; }
+      p { margin: 0 0 16px; }
+      ul { margin: 0 0 16px; padding-left: 22px; }
+      li { margin: 0 0 8px; }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px 24px;
+        margin: 24px 0;
+      }
+      .contact { display: inline-block; margin-top: 4px; font-size: 18px; font-weight: 600; }
+      details { border-top: 1px solid var(--border); padding: 16px 0; }
+      details:last-of-type { border-bottom: 1px solid var(--border); }
+      summary { cursor: pointer; font-weight: 600; font-size: 18px; list-style: none; }
+      summary::-webkit-details-marker { display: none; }
+      summary::before { content: "＋"; color: var(--muted); margin-right: 10px; font-weight: 400; }
+      details[open] summary::before { content: "－"; }
+      details p { margin: 12px 0 4px; }
+      strong { font-weight: 650; }
+      footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
+      footer a { color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/icon.png" alt="Discourse icon" />
+        <div class="title"><strong>Discourse for iOS</strong>A Matrix chat client for iPhone &amp; iPad</div>
+      </header>
+
+      <h1>Support</h1>
+      <p class="lede">Need a hand with Discourse for iOS? Start here.</p>
+
+      <div class="card">
+        <p style="margin:0 0 4px"><strong>Contact us</strong></p>
+        <p style="margin:0">The fastest way to reach us is email. We read every message.</p>
+        <a class="contact" href="mailto:support@fulltimefeline.com">support@fulltimefeline.com</a>
+      </div>
+
+      <h2>Frequently asked questions</h2>
+
+      <details>
+        <summary>What is Discourse?</summary>
+        <p>Discourse is a native client for <a href="https://matrix.org" rel="noopener">Matrix</a>, an open,
+        decentralized, end-to-end encrypted messaging network. It is not tied to any single provider — you
+        sign in to whichever Matrix homeserver you use.</p>
+      </details>
+
+      <details>
+        <summary>How do I sign in?</summary>
+        <p>Open the app and enter your Matrix account (for example <code>@you:matrix.org</code>) or your
+        homeserver address, then authenticate. Discourse supports both password and single-sign-on login
+        depending on what your homeserver offers.</p>
+      </details>
+
+      <details>
+        <summary>I'm not receiving notifications.</summary>
+        <p>Check that notifications are allowed for Discourse in <strong>iOS Settings → Notifications →
+        Discourse</strong>, and that notifications are enabled for the account inside the app's Settings
+        tab. Notifications are delivered through your homeserver's push gateway, so a homeserver that isn't
+        configured for push won't send them.</p>
+      </details>
+
+      <details>
+        <summary>Can I use more than one account?</summary>
+        <p>Yes. You can be signed in to multiple Matrix accounts at once and switch between them. You'll
+        receive notifications for every signed-in account, and each account has its own notification toggle
+        in Settings.</p>
+      </details>
+
+      <details>
+        <summary>Are my messages private?</summary>
+        <p>Messages in encrypted rooms are end-to-end encrypted on your device — not even your homeserver
+        can read them. Discourse itself has no servers and collects no data about you. See our
+        <a href="/ios/privacy">Privacy Policy</a> for details.</p>
+      </details>
+
+      <details>
+        <summary>How do I delete my data?</summary>
+        <p>Sign out of an account or delete the app to remove its locally stored data from your device. To
+        deactivate or delete your Matrix account itself, use the tools provided by your homeserver.</p>
+      </details>
+
+      <h2>Reporting a problem</h2>
+      <p>Found a bug or have a feature request? Email
+      <a href="mailto:support@fulltimefeline.com">support@fulltimefeline.com</a> with your device model,
+      iOS version, and a short description of what happened. Screenshots help.</p>
+
+      <footer>
+        Discourse for iOS · <a href="/ios/support">Support</a> · <a href="/ios/privacy">Privacy</a>
+      </footer>
+    </main>
+  </body>
+</html>

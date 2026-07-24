@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { AppState } from "@/app/AppState";
 import type { EventEntry, RoomSummary } from "@/models/types";
 import { useSession } from "@/app/context";
 import { useViewModel, useStore } from "@/core/reactive";
 import { preferences } from "@/core/Preferences";
 import { Composer, type ComposerEditTarget, type ComposerReplyTarget } from "./Composer";
-import { TimelineViewModel } from "./TimelineViewModel";
+import type { TimelineViewModel } from "./TimelineViewModel";
+import { acquireTimeline, releaseTimeline } from "./timelineCache";
 import { TimelineView, type TimelineViewHandle } from "./TimelineView";
 import { RoomHeader } from "./RoomHeader";
 import { ThreadView } from "./ThreadView";
@@ -30,11 +31,15 @@ export function RoomPane({ app, roomId }: Props) {
   // undefined right after selecting a room; a poll tick re-renders once it
   // materialises without ever mismatching roomId.
   const [pollTick, setPollTick] = useState(0);
+  // Only show the terminal "Room unavailable" state once the poll below has
+  // actually given up — before that, the missing room is just still loading.
+  const [roomLookupFailed, setRoomLookupFailed] = useState(false);
   const room = useMemo(
     () => session.getRoom(roomId) ?? undefined,
     [session, roomId, pollTick],
   );
   useEffect(() => {
+    setRoomLookupFailed(false);
     if (session.getRoom(roomId)) return;
     let tries = 0;
     const id = setInterval(() => {
@@ -44,26 +49,33 @@ export function RoomPane({ app, roomId }: Props) {
         clearInterval(id);
       } else if (tries >= 30) {
         console.warn("[timeline] room never materialised", roomId);
+        setRoomLookupFailed(true);
         clearInterval(id);
       }
     }, 500);
     return () => clearInterval(id);
   }, [session, roomId]);
 
-  // A fresh view model per room open: firstItemIndex resets, no state shared
-  // across mounts. Created inside the effect (not useMemo) so React StrictMode's
-  // mount/unmount/mount can't leave us starting a disposed instance. Each effect
-  // run gets its own VM and disposes exactly it.
+  // The view model comes from a per-session LRU cache (acquireTimeline) instead
+  // of being built fresh each open, so returning to a recent room reuses its
+  // retained FFI timeline + already-mapped entries and paints instantly. The
+  // cache owns the VM's lifetime: we `release` (park) on unmount rather than
+  // dispose, and the cache disposes on eviction/logout. Acquired inside the
+  // effect (not useMemo) so StrictMode's mount/unmount/mount stays consistent —
+  // acquire is idempotent per room and release just parks, so a double-invoke
+  // ends with the room active either way.
   const [vm, setVm] = useState<TimelineViewModel | undefined>(undefined);
-  useEffect(() => {
+  // useLayoutEffect (not useEffect) so the cached VM commits before paint —
+  // acquire/park are synchronous and idempotent, so semantics are unchanged,
+  // but a room switch no longer paints a blank frame first.
+  useLayoutEffect(() => {
     if (!room) {
       setVm(undefined);
       return;
     }
-    const v = new TimelineViewModel(session, room, roomId, { type: "live" });
+    const v = acquireTimeline(session, room, roomId);
     setVm(v);
-    void v.start();
-    return () => v.dispose();
+    return () => releaseTimeline(session, roomId);
   }, [session, room, roomId]);
 
   const [thread, setThread] = useState<string | null>(null);
@@ -123,7 +135,36 @@ export function RoomPane({ app, roomId }: Props) {
     return () => window.removeEventListener("discourse:jump-to-event", onJump);
   }, [roomId]);
 
+  // These three flow as props into the memoized MessageRow (via TimelineView's
+  // itemContent). They MUST be referentially stable, or every timeline state
+  // change (typing, receipts, pagination) re-renders every visible row. The
+  // setState setters are stable, so empty deps are correct. Declared before the
+  // early returns below so the hook order is unconditional (Rules of Hooks).
+  const startReply = useCallback((e: EventEntry) => {
+    setEdit(undefined);
+    setReply({
+      eventId: e.eventId ?? "",
+      senderName: e.senderProfile.displayName ?? e.sender,
+      body: bodyText(e),
+    });
+  }, []);
+  const startEdit = useCallback((e: EventEntry) => {
+    setReply(undefined);
+    if (e.eventId) setEdit({ eventId: e.eventId, body: bodyText(e) });
+  }, []);
+  const openThread = useCallback((id: string) => setThread(id), []);
+
   if (!room) {
+    if (!roomLookupFailed) {
+      // Still loading (the poll above hasn't given up yet).
+      return (
+        <div className="room-pane">
+          <div className="timeline-empty">
+            <div className="boot__spinner" />
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="room-pane">
         <div className="timeline-empty">Room unavailable</div>
@@ -134,19 +175,6 @@ export function RoomPane({ app, roomId }: Props) {
     // Room exists; the timeline VM is being created (one render tick).
     return <div className="room-pane" />;
   }
-
-  const startReply = (e: EventEntry) => {
-    setEdit(undefined);
-    setReply({
-      eventId: e.eventId ?? "",
-      senderName: e.senderProfile.displayName ?? e.sender,
-      body: bodyText(e),
-    });
-  };
-  const startEdit = (e: EventEntry) => {
-    setReply(undefined);
-    if (e.eventId) setEdit({ eventId: e.eventId, body: bodyText(e) });
-  };
 
   return (
     <div className="room-pane">
@@ -166,7 +194,7 @@ export function RoomPane({ app, roomId }: Props) {
           ownUserId={session.userId}
           onReply={startReply}
           onEdit={startEdit}
-          onOpenThread={(id) => setThread(id)}
+          onOpenThread={openThread}
         />
         <TypingIndicator vm={vm} />
         <UnencryptedBanner vm={vm} />
