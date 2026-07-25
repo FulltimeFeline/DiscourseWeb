@@ -94,6 +94,11 @@ export class SpacesViewModel extends ViewModel<SpacesState> {
 
   private started = false;
   private childrenRefreshTimer?: ReturnType<typeof setTimeout>;
+  /** Accumulated video-room ids discovered via the space hierarchy, bridged to
+   *  the RoomListViewModel so the main list rows can show the video glyph. */
+  private videoRoomIdsAll = new Set<string>();
+  /** Set by the scope to forward discovered video rooms to the room list. */
+  onVideoRoomsChange?: (ids: Set<string>) => void;
 
   constructor(private session: MatrixSession) {
     super({
@@ -273,6 +278,11 @@ export class SpacesViewModel extends ViewModel<SpacesState> {
     }
 
     const videoIds = await this.videoRoomIds(spaceId);
+    if (videoIds.size) {
+      let added = false;
+      for (const id of videoIds) if (!this.videoRoomIdsAll.has(id)) { this.videoRoomIdsAll.add(id); added = true; }
+      if (added) this.onVideoRoomsChange?.(this.videoRoomIdsAll);
+    }
     const rooms = list.rooms();
     const rawMapped: SpaceChild[] = rooms.map((r) => mapChild(r, videoIds));
     const rawIds = new Set(rawMapped.map((c) => c.id));

@@ -71,6 +71,9 @@ export class RoomListViewModel extends ViewModel<RoomListState> {
   private roomIndex = new Map<string, number>();
   /** Ids whose details have been loaded via refreshDetails at least once. */
   private populated = new Set<string>();
+  /** Video-room ids discovered via the space hierarchy (SpacesViewModel), so
+   *  the flag survives a re-seed of a summary that predates its discovery. */
+  private videoRoomIds = new Set<string>();
 
   // Retained SDK handles (must not be GC'd).
   private roomList?: RoomListInterface;
@@ -370,6 +373,7 @@ export class RoomListViewModel extends ViewModel<RoomListState> {
     } catch {
       /* keep prior */
     }
+    if (this.videoRoomIds.has(id) && !next.isVideoRoom) next = { ...next, isVideoRoom: true };
     try {
       const latest = await room.latestEvent();
       next = applyLatestEvent(next, latest);
@@ -635,6 +639,23 @@ export class RoomListViewModel extends ViewModel<RoomListState> {
     if (!cur) return;
     this.summaries.set(roomId, { ...cur, ...patch });
     this.publish();
+  }
+
+  /** Flag rooms as persistent video rooms. The room-list SDK `RoomInfo` has no
+   *  room-type field, so this knowledge is discovered from the space hierarchy
+   *  (SpacesViewModel) and bridged in here so RoomRow can show the video glyph.
+   *  `applyRoomInfo` preserves the flag via `...prev`, so it survives refreshes. */
+  markVideoRooms(ids: Iterable<string>): void {
+    let changed = false;
+    for (const id of ids) {
+      this.videoRoomIds.add(id);
+      const cur = this.summaries.get(id);
+      if (cur && !cur.isVideoRoom) {
+        this.summaries.set(id, { ...cur, isVideoRoom: true });
+        changed = true;
+      }
+    }
+    if (changed) this.publish();
   }
 
   // --- accessors for views --------------------------------------------------

@@ -35,6 +35,11 @@ export function getRoomListScope(app: AppState, session: MatrixSession): RoomLis
     }
   };
 
+  // The room-list SDK info has no room-type field, so video rooms are only
+  // discoverable via the space hierarchy (SpacesViewModel). Bridge them to the
+  // room list so the main rows can show the video glyph.
+  spaces.onVideoRoomsChange = (ids) => roomList.markVideoRooms(ids);
+
   const scope: RoomListScope = { roomList, spaces };
   scopes.set(session.userId, scope);
   void roomList.start();
