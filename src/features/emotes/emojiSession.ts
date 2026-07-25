@@ -177,7 +177,11 @@ export function useStickerStore(session: MatrixSession): StickerStore {
  * calling `ensure(roomId)`.
  */
 export function usePowerTags(session: MatrixSession): PowerLevelTagStore {
-  return powerTagsFor(session);
+  const store = powerTagsFor(session);
+  // Re-render when a room's tags load or change (e.g. a role rename), so labels
+  // update live instead of only on reopen.
+  useStore(store.version);
+  return store;
 }
 
 // --- EmojiSource builder (composer) ------------------------------------------

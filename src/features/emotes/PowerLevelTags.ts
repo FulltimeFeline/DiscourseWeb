@@ -10,6 +10,7 @@
 // arbitrary state in this SDK build), via session.restGet or a raw PUT.
 
 import type { MatrixSession } from "@/core/MatrixSession";
+import { Store } from "@/core/reactive";
 
 const TAGS_EVENT = "in.cinny.room.power_level_tags";
 
@@ -96,6 +97,12 @@ export class PowerLevelTagStore {
   private inflight = new Map<string, Promise<PowerLevelTag[]>>();
   private static TTL = 10 * 60 * 1000;
 
+  /** Bumped whenever a room's tags load or change, so consumers re-render. */
+  readonly version = new Store(0);
+  private bump() {
+    this.version.update((n) => n + 1);
+  }
+
   constructor(private session: MatrixSession) {}
 
   /** Cached tags for a room if loaded, else empty (built-ins used for lookup). */
@@ -126,6 +133,7 @@ export class PowerLevelTagStore {
       const tags = parsePowerLevelTags(content);
       this.cache.set(roomId, { tags, fetchedAt: Date.now() });
       this.inflight.delete(roomId);
+      this.bump();
       return tags;
     })();
     this.inflight.set(roomId, task);
@@ -163,6 +171,7 @@ export class PowerLevelTagStore {
       if (res.status === 403) return { ok: false, forbidden: true };
       if (!res.ok) return { ok: false };
       this.cache.set(roomId, { tags: parsePowerLevelTags(content), fetchedAt: Date.now() });
+      this.bump();
       return { ok: true };
     } catch {
       return { ok: false };
