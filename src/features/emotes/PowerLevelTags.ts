@@ -128,7 +128,8 @@ export class PowerLevelTagStore {
     if (inflight) return inflight;
     const task = (async () => {
       const content = await this.session.restGet(
-        `_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/${TAGS_EVENT}/`,
+        // No trailing slash — Tuwunel returns nothing for the trailing-slash form.
+        `_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/${TAGS_EVENT}`,
       );
       const tags = parsePowerLevelTags(content);
       this.cache.set(roomId, { tags, fetchedAt: Date.now() });

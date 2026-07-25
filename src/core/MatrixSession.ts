@@ -248,13 +248,15 @@ export class MatrixSession {
    * success.
    */
   async setUserPowerLevel(roomId: string, userId: string, level: number): Promise<boolean> {
-    const path = `_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.power_levels/`;
+    // GET must have NO trailing slash (Tuwunel returns nothing otherwise); PUT
+    // keeps the trailing slash, matching the proven space-banner state write.
+    const getPath = `_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.power_levels`;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const content: any = await this.restGet(path);
+    const content: any = await this.restGet(getPath);
     if (!content || typeof content !== "object") return false;
     const users = { ...(content.users ?? {}) };
     users[userId] = level;
-    return this.restPut(path, { ...content, users });
+    return this.restPut(`${getPath}/`, { ...content, users });
   }
 
   /**
@@ -262,9 +264,9 @@ export class MatrixSession {
    * via the same REST read-modify-write. `field` is a RoomPowerLevelChanges key.
    */
   async setPowerLevelField(roomId: string, field: string, level: number): Promise<boolean> {
-    const path = `_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.power_levels/`;
+    const getPath = `_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.power_levels`;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const content: any = await this.restGet(path);
+    const content: any = await this.restGet(getPath);
     if (!content || typeof content !== "object") return false;
     // Name/avatar/topic are per-event-type keys; the rest are top-level.
     const eventTypes: Record<string, string> = {
@@ -280,11 +282,11 @@ export class MatrixSession {
     if (field in eventTypes) {
       const events = { ...(content.events ?? {}) };
       events[eventTypes[field]] = level;
-      return this.restPut(path, { ...content, events });
+      return this.restPut(`${getPath}/`, { ...content, events });
     }
     const key = topLevel[field];
     if (!key) return false;
-    return this.restPut(path, { ...content, [key]: level });
+    return this.restPut(`${getPath}/`, { ...content, [key]: level });
   }
 
   /**
