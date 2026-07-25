@@ -1,7 +1,7 @@
 {
   "name": "discourse-web",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "description": "Discourse for Matrix. A web client running matrix-rust-sdk compiled to WebAssembly.",
   "homepage": "https://github.com/FulltimeFeline/Discourse",
