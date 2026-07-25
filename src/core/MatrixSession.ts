@@ -231,6 +231,24 @@ export class MatrixSession {
     );
   }
 
+  /**
+   * The room's `m.room.power_levels` users map read straight from the server
+   * (userId → level), so a member list reflects the true current levels rather
+   * than the SDK's possibly-stale per-member state. No trailing slash.
+   */
+  async roomUserPowerLevels(
+    roomId: string,
+  ): Promise<{ users: Record<string, number>; usersDefault: number } | undefined> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const content: any = await this.restGet(
+      `_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.power_levels`,
+    );
+    if (!content || typeof content !== "object") return undefined;
+    const users: Record<string, number> = {};
+    for (const [k, v] of Object.entries(content.users ?? {})) users[k] = Number(v);
+    return { users, usersDefault: Number(content.users_default ?? 0) };
+  }
+
   /** Removes a child from a space — empty `m.space.child` content = not a child. */
   async removeSpaceChild(spaceId: string, childId: string): Promise<boolean> {
     return this.restPut(

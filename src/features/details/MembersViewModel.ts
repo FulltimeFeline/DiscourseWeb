@@ -129,22 +129,32 @@ export class MembersViewModel extends ViewModel<MembersState> {
       // Own power-level, per-user levels, and whether we can re-level members.
       let canChangePowerLevels = false;
       let ownPowerLevel = 0;
+      // Authoritative per-user levels straight from the server's power_levels
+      // event — the SDK's per-member `powerLevel` (and even getPowerLevels) can
+      // lag a recent change, especially in a federated room, which is why a
+      // just-promoted admin kept showing under "Member" in the sidebar.
+      try {
+        const pl = await this.session.roomUserPowerLevels(this.roomId);
+        if (this.disposed) return;
+        if (pl) {
+          const own = pl.users[this.session.userId];
+          ownPowerLevel = own !== undefined ? own : pl.usersDefault;
+          for (const m of collected) {
+            const explicit = pl.users[m.userId];
+            if (explicit !== undefined) m.powerLevel = explicit;
+            else if (m.powerLevel < pl.usersDefault) m.powerLevel = pl.usersDefault;
+          }
+        }
+      } catch {
+        /* fall through to the FFI check below */
+      }
       try {
         const levels = await room.getPowerLevels();
         if (this.disposed) return;
         canChangePowerLevels = levels.canOwnUserSendState(StateEventType.RoomPowerLevels);
-        const usersDefault = Number(levels.values().usersDefault);
-        // userPowerLevels() is a Map — index with .get(), not [].
-        const userLevels = levels.userPowerLevels();
-        const own = userLevels.get(this.session.userId);
-        ownPowerLevel = own !== undefined ? Number(own) : usersDefault;
-        // Override each member's level from the fresh power_levels map: a
-        // RoomMember's own `powerLevel` can lag a recent promotion (the event
-        // updates before per-member state is recomputed), which is why a
-        // just-promoted admin still showed under "Member".
-        for (const m of collected) {
-          const explicit = userLevels.get(m.userId);
-          if (explicit !== undefined) m.powerLevel = Number(explicit);
+        if (ownPowerLevel === 0) {
+          const own = levels.userPowerLevels().get(this.session.userId);
+          ownPowerLevel = own !== undefined ? Number(own) : Number(levels.values().usersDefault);
         }
       } catch {
         /* fail closed: no role menu */
