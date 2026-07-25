@@ -210,8 +210,12 @@ export function SidebarView({ app }: { app: AppState }) {
     void (async () => {
       const invite = await scope.spaces.checkCanInvite(room.id).catch(() => false);
       const manageable = new Set<string>();
-      const canMove = room.isSpace ? false : await scope.spaces.checkCanMoveRoom(room.id).catch(() => false);
-      if (canMove) {
+      // Filing/unfiling a room only writes `m.space.child` in the SPACE, so the
+      // permission that matters is power in the space — NOT power in the room.
+      // Gating on room-level power (checkCanMoveRoom) meant a space admin
+      // couldn't remove a room they hadn't joined, since getRoom() is null for
+      // an unjoined room and the check failed closed.
+      if (!room.isSpace) {
         await Promise.all(
           scope.spaces.state.orderedSpaces.map(async (s) => {
             if (s.id === room.id) return;
