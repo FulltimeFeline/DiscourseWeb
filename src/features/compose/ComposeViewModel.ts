@@ -194,7 +194,17 @@ async function addChildToSpace(
   childId: string,
 ): Promise<boolean> {
   for (let attempt = 0; attempt < 10; attempt++) {
-    if (await session.addSpaceChild(spaceId, childId)) return true;
+    if (await session.addSpaceChild(spaceId, childId)) {
+      // Tell the sidebar to show the room under its space without a manual
+      // refresh — the SpacesViewModel only reloads children on space-list diffs,
+      // which filing a room doesn't trigger.
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("discourse:room-filed", { detail: { spaceId, roomId: childId } }),
+        );
+      }
+      return true;
+    }
     await new Promise((r) => setTimeout(r, 500));
   }
   return false;

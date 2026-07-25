@@ -59,6 +59,10 @@ export interface SpacesState {
   orderedSpaces: SpaceItem[];
   /** Union of all rooms filed into any space (hidden from Home). */
   allSpaceChildIds: Set<string>;
+  /** Bumped on any change to the children/childIds maps, so memos that read
+   *  those maps recompute even when the joined-id union is unchanged (e.g. an
+   *  unjoined directory child was removed). */
+  childrenRev: number;
   /** Rail unread pips: space ids that contain an unread room. */
   unreadSpaceIds: Set<string>;
   homeHasUnread: boolean;
@@ -79,6 +83,14 @@ export class SpacesViewModel extends ViewModel<SpacesState> {
   private children = new Map<string, SpaceChild[]>();
   /** spaceId → retained SpaceRoomList handle. */
   private childLists = new Map<string, SpaceRoomListInterface>();
+  /** spaceId → child ids removed locally but possibly still present in the
+   *  (eventually consistent) SDK list — filtered out of loadChildren until the
+   *  SDK drops them. Prevents an optimistic removal from flip-flopping back. */
+  private removedChildIds = new Map<string, Set<string>>();
+  /** spaceId → child ids added locally but not yet in the SDK list — kept in
+   *  the joined filter until the SDK catches up (so a new/added room shows
+   *  under its space without a manual refresh). */
+  private pendingChildIds = new Map<string, Set<string>>();
 
   private started = false;
   private childrenRefreshTimer?: ReturnType<typeof setTimeout>;
@@ -88,6 +100,7 @@ export class SpacesViewModel extends ViewModel<SpacesState> {
       spaces: [],
       orderedSpaces: [],
       allSpaceChildIds: new Set(),
+      childrenRev: 0,
       unreadSpaceIds: new Set(),
       homeHasUnread: false,
       mentionSpaceIds: new Set(),
@@ -261,12 +274,34 @@ export class SpacesViewModel extends ViewModel<SpacesState> {
 
     const videoIds = await this.videoRoomIds(spaceId);
     const rooms = list.rooms();
-    const mapped: SpaceChild[] = rooms.map((r) => mapChild(r, videoIds));
+    const rawMapped: SpaceChild[] = rooms.map((r) => mapChild(r, videoIds));
+    const rawIds = new Set(rawMapped.map((c) => c.id));
+
+    // Reconcile optimistic local edits against the (eventually consistent) SDK
+    // list: drop tombstones/pending markers the server has now caught up on.
+    const tomb = this.removedChildIds.get(spaceId);
+    if (tomb) {
+      for (const id of [...tomb]) if (!rawIds.has(id)) tomb.delete(id);
+      if (tomb.size === 0) this.removedChildIds.delete(spaceId);
+    }
+    const pend = this.pendingChildIds.get(spaceId);
+    if (pend) {
+      for (const id of [...pend]) if (rawIds.has(id)) pend.delete(id);
+      if (pend.size === 0) this.pendingChildIds.delete(spaceId);
+    }
+
+    // Hide still-cached removed children.
+    const tombNow = this.removedChildIds.get(spaceId);
+    const mapped = tombNow ? rawMapped.filter((c) => !tombNow.has(c.id)) : rawMapped;
     this.children.set(spaceId, mapped);
 
-    // Joined, non-space children drive the room-list filter for this space.
+    // Joined, non-space children drive the room-list filter for this space;
+    // keep just-added rooms visible until the SDK list includes them.
     const joined = new Set(mapped.filter((c) => c.isJoined && !c.isSpace).map((c) => c.id));
+    const pendNow = this.pendingChildIds.get(spaceId);
+    if (pendNow) for (const id of pendNow) joined.add(id);
     this.childIds.set(spaceId, joined);
+    this.bumpChildren();
     return mapped;
   }
 
@@ -294,6 +329,12 @@ export class SpacesViewModel extends ViewModel<SpacesState> {
       for (const id of set) union.add(id);
     }
     this.setState({ allSpaceChildIds: union });
+  }
+
+  /** Bump the reactive counter so memos reading the children/childIds maps
+   *  recompute even when the joined-id union is unchanged. */
+  private bumpChildren(): void {
+    this.setState({ childrenRev: this.state.childrenRev + 1 });
   }
 
   // --- rail unread flags (stored, equality-guarded) -------------------------
@@ -386,32 +427,69 @@ export class SpacesViewModel extends ViewModel<SpacesState> {
   // --- filing / permissions -------------------------------------------------
 
   async toggleRoomInSpace(roomId: string, spaceId: string): Promise<void> {
-    const set = this.childIds.get(spaceId);
-    const isMember = set?.has(roomId) ?? false;
-    // Go through the REST `m.space.child` helpers rather than
-    // SpaceService.add/removeChildToSpace — the WASM binding's write path is
-    // unreliable here, so filing/unfiling appeared to do nothing.
-    if (isMember) {
-      const ok = await this.session.removeSpaceChild(spaceId, roomId);
-      if (ok) set?.delete(roomId);
-    } else {
-      await this.fileRoom(roomId, spaceId);
-    }
+    const isMember = this.childIds.get(spaceId)?.has(roomId) ?? false;
+    if (isMember) await this.removeChildFromSpace(spaceId, roomId);
+    else await this.addChild(spaceId, roomId);
+  }
+
+  /** Optimistically record that `roomId` is now a child of `spaceId` (id only)
+   *  and reconcile from the server. Used both by the add path and by the room
+   *  creation flow (which writes `m.space.child` itself), so a new/added room
+   *  shows under its space without a manual refresh. Go through the REST
+   *  `m.space.child` helpers rather than SpaceService.add/removeChildToSpace —
+   *  the WASM binding's write path is unreliable here. */
+  noteChildAdded(spaceId: string, roomId: string): void {
+    this.removedChildIds.get(spaceId)?.delete(roomId);
+    const pend = this.pendingChildIds.get(spaceId) ?? new Set<string>();
+    pend.add(roomId);
+    this.pendingChildIds.set(spaceId, pend);
+    const set = this.childIds.get(spaceId) ?? new Set<string>();
+    set.add(roomId);
+    this.childIds.set(spaceId, set);
     this.rebuildAllChildIds();
+    this.bumpChildren();
     void this.loadChildren(spaceId);
   }
 
-  /** File a room into a space, retried (a just-created room takes a sync to exist). */
-  private async fileRoom(roomId: string, spaceId: string): Promise<void> {
+  /** File a room into a space, retried (a just-created room takes a sync to
+   *  exist). Optimistic — the row appears immediately, rolls back on failure. */
+  async addChild(spaceId: string, roomId: string): Promise<boolean> {
+    this.noteChildAdded(spaceId, roomId);
+    let ok = false;
     for (let attempt = 0; attempt < 10; attempt++) {
       if (await this.session.addSpaceChild(spaceId, roomId)) {
-        const set = this.childIds.get(spaceId) ?? new Set<string>();
-        set.add(roomId);
-        this.childIds.set(spaceId, set);
-        return;
+        ok = true;
+        break;
       }
       await sleep(500);
     }
+    if (!ok) {
+      this.pendingChildIds.get(spaceId)?.delete(roomId);
+      this.childIds.get(spaceId)?.delete(roomId);
+      this.rebuildAllChildIds();
+      this.bumpChildren();
+    }
+    return ok;
+  }
+
+  /** Remove a room from a space's listing (admin). Works for unjoined directory
+   *  children too — it only writes `m.space.child` in the SPACE, so the power
+   *  that governs it is over the space, not the room. Optimistic + tombstoned. */
+  async removeChildFromSpace(spaceId: string, roomId: string): Promise<boolean> {
+    this.pendingChildIds.get(spaceId)?.delete(roomId);
+    const tomb = this.removedChildIds.get(spaceId) ?? new Set<string>();
+    tomb.add(roomId);
+    this.removedChildIds.set(spaceId, tomb);
+    this.childIds.get(spaceId)?.delete(roomId);
+    const list = this.children.get(spaceId);
+    if (list) this.children.set(spaceId, list.filter((c) => c.id !== roomId));
+    this.rebuildAllChildIds();
+    this.bumpChildren();
+
+    const ok = await this.session.removeSpaceChild(spaceId, roomId);
+    if (!ok) tomb.delete(roomId); // failed → it's still a child; let reload restore it
+    void this.loadChildren(spaceId);
+    return ok;
   }
 
   // Async permission checks (fail-closed). Callers prime a cache the menus read;

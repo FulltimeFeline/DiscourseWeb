@@ -11,9 +11,12 @@ import "./roomlist.css";
 export function SpaceDirectoryRow({
   child,
   onJoin,
+  onRemove,
 }: {
   child: SpaceChild;
   onJoin: () => Promise<void> | void;
+  /** Present only for space admins: unfile this room from the space. */
+  onRemove?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const subtitle =
@@ -49,6 +52,20 @@ export function SpaceDirectoryRow({
       >
         {busy ? "…" : "Join"}
       </button>
+      {onRemove && (
+        <button
+          type="button"
+          className="rl-dir__remove"
+          title="Remove from space"
+          aria-label="Remove from space"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+        >
+          <Icon name="x" size={14} />
+        </button>
+      )}
     </div>
   );
 }

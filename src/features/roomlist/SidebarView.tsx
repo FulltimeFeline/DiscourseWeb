@@ -86,10 +86,41 @@ export function SidebarView({ app }: { app: AppState }) {
     );
   }, [scope, roomList.rooms, spaces.allSpaceChildIds]);
 
+  // A room filed into a space by the create flow (which writes m.space.child
+  // directly) doesn't trigger a space-list diff, so the spaces VM wouldn't
+  // reload its children — the new room needed a refresh to appear. Nudge it.
+  useEffect(() => {
+    const onFiled = (e: Event) => {
+      const d = (e as CustomEvent<{ spaceId?: string; roomId?: string }>).detail;
+      if (d?.spaceId && d.roomId) scope.spaces.noteChildAdded(d.spaceId, d.roomId);
+    };
+    window.addEventListener("discourse:room-filed", onFiled);
+    return () => window.removeEventListener("discourse:room-filed", onFiled);
+  }, [scope]);
+
+  // Whether the current user can manage the selected space (send m.space.child),
+  // which gates the "remove from space" affordance on directory rows.
+  const [canManageSpace, setCanManageSpace] = useState(false);
+  useEffect(() => {
+    setCanManageSpace(false);
+    if (selectedSpaceId == null) return;
+    let alive = true;
+    void scope.spaces
+      .checkCanManageSpace(selectedSpaceId)
+      .then((ok) => {
+        if (alive) setCanManageSpace(ok);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [scope, selectedSpaceId]);
+
   const query = roomList.debouncedQuery;
   const visibleRoomIds = useMemo(
     () => scope.spaces.visibleRoomIds(selectedSpaceId),
-    [scope, selectedSpaceId, spaces.allSpaceChildIds],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scope, selectedSpaceId, spaces.allSpaceChildIds, spaces.childrenRev],
   );
 
   // Rooms visible in the current column (space filter + search).
@@ -116,7 +147,8 @@ export function SidebarView({ app }: { app: AppState }) {
       .childrenOf(selectedSpaceId)
       .filter((c) => !c.isSpace && !c.isJoined)
       .filter((c) => !query || c.foldedName.includes(query));
-  }, [scope, selectedSpaceId, spaces.allSpaceChildIds, query]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope, selectedSpaceId, spaces.allSpaceChildIds, spaces.childrenRev, query]);
 
   const currentSpace =
     selectedSpaceId != null
@@ -445,6 +477,11 @@ export function SidebarView({ app }: { app: AppState }) {
                     const id = await scope.spaces.joinChild(c);
                     if (id) app.selectRoom(id);
                   }}
+                  onRemove={
+                    canManageSpace && selectedSpaceId
+                      ? () => void scope.spaces.removeChildFromSpace(selectedSpaceId, c.id)
+                      : undefined
+                  }
                 />
               ))}
             </section>

@@ -492,6 +492,23 @@
   opacity: 0.6;
   cursor: default;
 }
+.rl-dir__remove {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.rl-dir__remove:hover {
+  background: var(--bg-active);
+  color: var(--unread-mention);
+}
 
 /* ---- Space Home sheet ------------------------------------------------ */
 
