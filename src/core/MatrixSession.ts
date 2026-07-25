@@ -240,6 +240,54 @@ export class MatrixSession {
   }
 
   /**
+   * Sets a user's power level by editing the `m.room.power_levels` state event
+   * directly (read-modify-write over REST). We go through REST rather than the
+   * `Room.updatePowerLevelsForUsers` FFI because the WASM write path is
+   * unreliable in this build — the change appeared to apply locally but never
+   * reached the server, so promotions silently didn't stick. Returns true on
+   * success.
+   */
+  async setUserPowerLevel(roomId: string, userId: string, level: number): Promise<boolean> {
+    const path = `_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.power_levels/`;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const content: any = await this.restGet(path);
+    if (!content || typeof content !== "object") return false;
+    const users = { ...(content.users ?? {}) };
+    users[userId] = level;
+    return this.restPut(path, { ...content, users });
+  }
+
+  /**
+   * Sets one power-level threshold (the minimum level required for an action)
+   * via the same REST read-modify-write. `field` is a RoomPowerLevelChanges key.
+   */
+  async setPowerLevelField(roomId: string, field: string, level: number): Promise<boolean> {
+    const path = `_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.power_levels/`;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const content: any = await this.restGet(path);
+    if (!content || typeof content !== "object") return false;
+    // Name/avatar/topic are per-event-type keys; the rest are top-level.
+    const eventTypes: Record<string, string> = {
+      roomName: "m.room.name",
+      roomAvatar: "m.room.avatar",
+      roomTopic: "m.room.topic",
+    };
+    const topLevel: Record<string, string> = {
+      ban: "ban", invite: "invite", kick: "kick", redact: "redact",
+      eventsDefault: "events_default", stateDefault: "state_default",
+      usersDefault: "users_default",
+    };
+    if (field in eventTypes) {
+      const events = { ...(content.events ?? {}) };
+      events[eventTypes[field]] = level;
+      return this.restPut(path, { ...content, events });
+    }
+    const key = topLevel[field];
+    if (!key) return false;
+    return this.restPut(path, { ...content, [key]: level });
+  }
+
+  /**
    * A user's federated profile: display name, avatar, and the Commet extended
    * fields (bio/status/banner/timezone/pronouns/social links). Reads the origin
    * homeserver directly since federation doesn't relay custom profile fields.

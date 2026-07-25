@@ -163,16 +163,12 @@ export class MembersViewModel extends ViewModel<MembersState> {
 
   /** Promote/demote a member. Returns true on success; reloads the roster. */
   async setPowerLevel(userId: string, level: number): Promise<boolean> {
-    const room = this.session.getRoom(this.roomId) as RoomInterface | undefined;
-    if (!room) return false;
-    try {
-      await room.updatePowerLevelsForUsers([{ userId, powerLevel: BigInt(level) }]);
-      await this.load();
-      return true;
-    } catch (err) {
-      console.warn(`[MembersViewModel] setPowerLevel failed for ${userId}`, err);
-      return false;
-    }
+    // REST read-modify-write — the FFI updatePowerLevelsForUsers doesn't reliably
+    // persist in the WASM build (promotions silently didn't stick).
+    const ok = await this.session.setUserPowerLevel(this.roomId, userId, level);
+    if (ok) await this.load();
+    else console.warn(`[MembersViewModel] setPowerLevel failed for ${userId}`);
+    return ok;
   }
 
   /** Remove a member from the room (moderator action); reloads the roster. */

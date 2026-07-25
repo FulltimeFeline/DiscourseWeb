@@ -452,11 +452,16 @@ const PERMISSION_ROWS: { key: keyof RoomPowerLevelChanges; label: string }[] = [
 
 function RolesTab({ room, loaded }: { room: RoomInterface; loaded: Loaded }) {
   const { gates, powerValues, userLevels } = loaded;
+  const session = useSession();
   const [users, setUsers] = useState<[string, bigint][]>(() => Array.from(userLevels.entries()));
   const [newUser, setNewUser] = useState("");
 
   async function setUserLevel(userId: string, level: number) {
-    await room.updatePowerLevelsForUsers([{ userId, powerLevel: BigInt(level) }]);
+    // REST read-modify-write of m.room.power_levels — the FFI write path is
+    // unreliable in the WASM build, so the picker appeared to apply but the
+    // change never reached the server.
+    const ok = await session.setUserPowerLevel(room.id(), userId, level);
+    if (!ok) return;
     setUsers((prev) => {
       const next = prev.filter(([u]) => u !== userId);
       if (level !== 0) next.push([userId, BigInt(level)]);
@@ -465,13 +470,9 @@ function RolesTab({ room, loaded }: { room: RoomInterface; loaded: Loaded }) {
   }
 
   async function applyPermission(key: keyof RoomPowerLevelChanges, level: number) {
-    const changes = {
-      ban: undefined, invite: undefined, kick: undefined, redact: undefined,
-      eventsDefault: undefined, stateDefault: undefined, usersDefault: undefined,
-      roomName: undefined, roomAvatar: undefined, roomTopic: undefined,
-    } as unknown as RoomPowerLevelChanges;
-    (changes as Record<string, bigint | undefined>)[key] = BigInt(level);
-    await room.applyPowerLevelChanges(changes);
+    // REST read-modify-write — the FFI applyPowerLevelChanges doesn't persist
+    // reliably in the WASM build.
+    await session.setPowerLevelField(room.id(), key as string, level);
   }
 
   if (!gates.roles) return <Section title="Roles"><p className="dm-muted">You don't have permission to change roles here.</p></Section>;
@@ -504,7 +505,16 @@ function RolesTab({ room, loaded }: { room: RoomInterface; loaded: Loaded }) {
                   setNewUser("");
                 }}
               >
-                Add as Moderator
+                + Moderator
+              </Button>
+              <Button
+                disabled={!newUser.startsWith("@")}
+                onClick={() => {
+                  void setUserLevel(newUser.trim(), 100);
+                  setNewUser("");
+                }}
+              >
+                + Admin
               </Button>
             </div>
           }
