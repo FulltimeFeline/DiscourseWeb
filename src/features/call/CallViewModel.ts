@@ -128,6 +128,11 @@ function makeCapabilitiesProvider(ownUserId: string, ownDeviceId: string) {
 
 export class CallViewModel extends ViewModel<State> {
   private iframe?: HTMLIFrameElement;
+  /** Driver→widget messages produced before the iframe existed. postMessage to a
+   *  not-yet-attached iframe is lost, and the widget-API handshake frames
+   *  (supported_api_versions, capabilities) are emitted immediately — dropping
+   *  them left Element Call waiting forever ("Request timed out"). Queue + flush. */
+  private pendingOutbound: unknown[] = [];
   private driver?: WidgetDriverInterface;
   private handle?: WidgetDriverHandleInterface;
   private pumpAbort?: AbortController;
@@ -173,6 +178,12 @@ export class CallViewModel extends ViewModel<State> {
   /** The <iframe> registers itself once mounted. */
   attachIframe(iframe: HTMLIFrameElement): void {
     this.iframe = iframe;
+    // Flush any handshake frames the driver emitted before the iframe existed.
+    if (this.pendingOutbound.length && this.state.ecOrigin) {
+      const queued = this.pendingOutbound;
+      this.pendingOutbound = [];
+      for (const m of queued) this.postToWidget(m);
+    }
   }
 
   // --- lifecycle ------------------------------------------------------------
@@ -196,9 +207,15 @@ export class CallViewModel extends ViewModel<State> {
       const props = VirtualElementCallWidgetProperties.create({
         elementCallUrl: ecBase,
         widgetId,
-        // Post to itself, in-page: the iframe receives its own messages, which
-        // the matrix-widget-api ignores (parentUrl == url).
-        parentUrl: ecBase,
+        // `parentUrl` is the HOST origin that matrix-widget-api uses as the
+        // targetOrigin when the widget posts its fromWidget messages to
+        // window.parent (us). It MUST be our app's origin — if it's ecBase
+        // (call.element.io), the browser drops every EC→host message because
+        // our real origin doesn't match, so the widget-API handshake
+        // (supported_api_versions, capabilities) times out and the call hangs
+        // on "loading" forever. It's also what EC validates our host→widget
+        // messages' sender origin against.
+        parentUrl: typeof window !== "undefined" ? window.location.origin : ecBase,
         fontScale: undefined,
         font: undefined,
         encryption: EncryptionSystem.PerParticipantKeys.new(),
@@ -359,7 +376,12 @@ export class CallViewModel extends ViewModel<State> {
   private postToWidget(message: unknown): void {
     const win = this.iframe?.contentWindow;
     const origin = this.state.ecOrigin;
-    if (!win || !origin) return;
+    if (!win || !origin) {
+      // Iframe not attached yet — queue so early handshake frames aren't lost;
+      // attachIframe() flushes them. Bounded so a stuck attach can't grow it.
+      if (this.pendingOutbound.length < 256) this.pendingOutbound.push(message);
+      return;
+    }
     try {
       win.postMessage(message, origin);
     } catch {
