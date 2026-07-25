@@ -232,6 +232,66 @@ export class MatrixSession {
   }
 
   /**
+   * Every joined/knownable room inside a space (recursively), via the hierarchy
+   * API — used to propagate space-level role settings to the rooms in the space.
+   * Excludes the space itself and any sub-spaces (only actual rooms).
+   */
+  async spaceChildRoomIds(spaceId: string): Promise<string[]> {
+    const out: string[] = [];
+    let from: string | undefined;
+    // Bounded pagination so a large space can't loop forever.
+    for (let page = 0; page < 20; page++) {
+      let path =
+        `_matrix/client/v1/rooms/${encodeURIComponent(spaceId)}/hierarchy?limit=100&max_depth=5`;
+      if (from) path += `&from=${encodeURIComponent(from)}`;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const json: any = await this.restGet(path);
+      if (!json) break;
+      for (const r of json.rooms ?? []) {
+        if (r.room_id && r.room_id !== spaceId && r.room_type !== "m.space") {
+          out.push(r.room_id);
+        }
+      }
+      from = json.next_batch;
+      if (!from) break;
+    }
+    return [...new Set(out)];
+  }
+
+  /**
+   * Copies a space's role config (power-level `users` map + the Cinny role-label
+   * tags) onto one room, so a room created in the space inherits the space's
+   * roles. Best-effort per write.
+   */
+  async copySpaceRolesToRoom(spaceId: string, roomId: string): Promise<void> {
+    // Power-level users map: merge the space's users into the room's power levels.
+    const pl = await this.roomUserPowerLevels(spaceId);
+    if (pl && Object.keys(pl.users).length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const roomPl: any = await this.restGet(
+        `_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.power_levels`,
+      );
+      if (roomPl && typeof roomPl === "object") {
+        const users = { ...(roomPl.users ?? {}), ...pl.users };
+        await this.restPut(
+          `_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.power_levels/`,
+          { ...roomPl, users },
+        );
+      }
+    }
+    // Cinny role-label tags: copy verbatim.
+    const tags = await this.restGet(
+      `_matrix/client/v3/rooms/${encodeURIComponent(spaceId)}/state/in.cinny.room.power_level_tags`,
+    );
+    if (tags && typeof tags === "object" && Object.keys(tags).length > 0) {
+      await this.restPut(
+        `_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/in.cinny.room.power_level_tags/`,
+        tags,
+      );
+    }
+  }
+
+  /**
    * The room's `m.room.power_levels` users map read straight from the server
    * (userId → level), so a member list reflects the true current levels rather
    * than the SDK's possibly-stale per-member state. No trailing slash.

@@ -103,6 +103,9 @@ export async function createRoom(
 
   if (input.parentSpaceId) {
     await addChildToSpace(session, input.parentSpaceId, roomId);
+    // Inherit the space's roles (power levels + role labels) so space-wide
+    // roles auto-apply to new rooms.
+    await session.copySpaceRolesToRoom(input.parentSpaceId, roomId).catch(() => {});
   }
   return roomId;
 }
@@ -140,6 +143,7 @@ export async function createVideoRoom(
   const roomId = json?.room_id;
   if (roomId && input.parentSpaceId) {
     await addChildToSpace(session, input.parentSpaceId, roomId);
+    await session.copySpaceRolesToRoom(input.parentSpaceId, roomId).catch(() => {});
   }
   return roomId;
 }

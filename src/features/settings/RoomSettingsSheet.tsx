@@ -456,12 +456,29 @@ function RolesTab({ room, loaded }: { room: RoomInterface; loaded: Loaded }) {
   const [users, setUsers] = useState<[string, bigint][]>(() => Array.from(userLevels.entries()));
   const [newUser, setNewUser] = useState("");
 
+  // Rooms these settings apply to: this room plus, if it's a space, every room
+  // inside it — so a space's roles auto-apply to all its rooms. (Empty for a
+  // regular room, so targetRooms is just itself.)
+  const [childRooms, setChildRooms] = useState<string[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void session.spaceChildRoomIds(room.id()).then((ids) => {
+      if (alive) setChildRooms(ids);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [session, room]);
+  const targetRooms = useMemo(() => [room.id(), ...childRooms], [room, childRooms]);
+
   async function setUserLevel(userId: string, level: number) {
-    // REST read-modify-write of m.room.power_levels — the FFI write path is
-    // unreliable in the WASM build, so the picker appeared to apply but the
-    // change never reached the server.
-    const ok = await session.setUserPowerLevel(room.id(), userId, level);
-    if (!ok) return;
+    // REST read-modify-write of m.room.power_levels (the FFI write is unreliable
+    // in the WASM build). Fan out to every room in the space.
+    let anyOk = false;
+    for (const rid of targetRooms) {
+      if (await session.setUserPowerLevel(rid, userId, level)) anyOk = true;
+    }
+    if (!anyOk) return;
     setUsers((prev) => {
       const next = prev.filter(([u]) => u !== userId);
       if (level !== 0) next.push([userId, BigInt(level)]);
@@ -470,9 +487,9 @@ function RolesTab({ room, loaded }: { room: RoomInterface; loaded: Loaded }) {
   }
 
   async function applyPermission(key: keyof RoomPowerLevelChanges, level: number) {
-    // REST read-modify-write — the FFI applyPowerLevelChanges doesn't persist
-    // reliably in the WASM build.
-    await session.setPowerLevelField(room.id(), key as string, level);
+    for (const rid of targetRooms) {
+      await session.setPowerLevelField(rid, key as string, level);
+    }
   }
 
   if (!gates.roles) return <Section title="Roles"><p className="dm-muted">You don't have permission to change roles here.</p></Section>;
@@ -613,6 +630,10 @@ function RoleLabelsSection({
       };
     });
     const res = await powerTags.save(roomId, tags);
+    // If this is a space, write the same labels to every room inside it so the
+    // roles show up wherever people are chatting.
+    const childRooms = await session.spaceChildRoomIds(roomId);
+    for (const rid of childRooms) await powerTags.save(rid, tags);
     setBusy(false);
     setStatus(res.ok ? "saved" : res.forbidden ? "forbidden" : "error");
   }
