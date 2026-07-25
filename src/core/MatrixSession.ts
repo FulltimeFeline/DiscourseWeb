@@ -214,6 +214,32 @@ export class MatrixSession {
   }
 
   /**
+   * Files a room/space under a parent space by writing the `m.space.child`
+   * state event directly. We go through REST rather than
+   * `SpaceService.addChildToSpace` because the WASM binding's write path is
+   * unreliable in this build. `via` MUST be non-empty for the child to count as
+   * a member, so seed it from the child's own server (and ours). Returns true
+   * on success.
+   */
+  async addSpaceChild(spaceId: string, childId: string): Promise<boolean> {
+    const childServer = childId.split(":").slice(1).join(":");
+    const via = [...new Set([childServer, this.ownServerName].filter(Boolean))];
+    if (via.length === 0) return false;
+    return this.restPut(
+      `_matrix/client/v3/rooms/${encodeURIComponent(spaceId)}/state/m.space.child/${encodeURIComponent(childId)}`,
+      { via },
+    );
+  }
+
+  /** Removes a child from a space — empty `m.space.child` content = not a child. */
+  async removeSpaceChild(spaceId: string, childId: string): Promise<boolean> {
+    return this.restPut(
+      `_matrix/client/v3/rooms/${encodeURIComponent(spaceId)}/state/m.space.child/${encodeURIComponent(childId)}`,
+      {},
+    );
+  }
+
+  /**
    * A user's federated profile: display name, avatar, and the Commet extended
    * fields (bio/status/banner/timezone/pronouns/social links). Reads the origin
    * homeserver directly since federation doesn't relay custom profile fields.

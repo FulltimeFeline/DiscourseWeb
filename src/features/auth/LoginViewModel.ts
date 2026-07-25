@@ -28,6 +28,9 @@ interface LoginSnapshot {
   homeserver: string;
   username: string;
   password: string;
+  registrationToken: string;
+  /** Toggles the methods stage between signing in and creating an account. */
+  isRegistering: boolean;
   methods: LoginMethods | null;
   serverUrl: string | null;
   busy: boolean;
@@ -47,6 +50,8 @@ export class LoginViewModel extends ViewModel<LoginSnapshot> {
       homeserver: "matrix.org",
       username: "",
       password: "",
+      registrationToken: "",
+      isRegistering: false,
       methods: null,
       serverUrl: null,
       busy: false,
@@ -63,10 +68,24 @@ export class LoginViewModel extends ViewModel<LoginSnapshot> {
   setPassword(v: string): void {
     this.setState({ password: v, error: null });
   }
+  setRegistrationToken(v: string): void {
+    this.setState({ registrationToken: v, error: null });
+  }
+  /** Switch the methods stage between "sign in" and "create account". */
+  setRegistering(registering: boolean): void {
+    this.setState({ isRegistering: registering, error: null });
+  }
 
   backToServer(): void {
     this.client = undefined;
-    this.setState({ stage: "server", methods: null, error: null, password: "" });
+    this.setState({
+      stage: "server",
+      methods: null,
+      error: null,
+      password: "",
+      registrationToken: "",
+      isRegistering: false,
+    });
   }
 
   /** Stage 1: build a client for the homeserver and discover login methods. */
@@ -123,6 +142,38 @@ export class LoginViewModel extends ViewModel<LoginSnapshot> {
       await this.app.completeLogin(this.client, this.passphrase, this.storeId);
     } catch (e) {
       this.setState({ busy: false, error: describe(e, "Login failed.") });
+    }
+  }
+
+  /**
+   * Create a new account, then sign in. The SDK exposes no registration API, so
+   * this drives `/_matrix/client/v3/register` directly (token UIA, with
+   * `inhibit_login` so no throwaway device is minted) and then logs in through
+   * the SDK's normal password path — identical session/crypto setup to a login.
+   */
+  async register(): Promise<void> {
+    if (!this.client || !this.passphrase || !this.storeId) return;
+    const username = this.state.username.trim();
+    const { password } = this.state;
+    const registrationToken = this.state.registrationToken.trim();
+    if (!username || !password || !registrationToken) {
+      this.setState({ error: "Enter a username, password, and registration token." });
+      return;
+    }
+    const base = (this.state.serverUrl ?? "").replace(/\/+$/, "");
+    if (!base) {
+      this.setState({ error: "Couldn't determine the homeserver address." });
+      return;
+    }
+    this.setState({ busy: true, error: null });
+    try {
+      await registerAccount(base, username, password, registrationToken);
+      // Account exists (no device, thanks to inhibit_login) — sign in.
+      await this.client.login(username, password, DEVICE_NAME, undefined);
+      assertNativeSlidingSync(this.client);
+      await this.app.completeLogin(this.client, this.passphrase, this.storeId);
+    } catch (e) {
+      this.setState({ busy: false, error: describe(e, "Registration failed.") });
     }
   }
 
@@ -195,6 +246,75 @@ export async function completeOidcCallbackIfPresent(app: AppState): Promise<bool
       /* storage unavailable */
     }
     return false;
+  }
+}
+
+/**
+ * Registers an account via UIA, satisfying the registration-token stage (this
+ * homeserver's only registration flow) plus any trailing `m.login.dummy`.
+ * `inhibit_login` avoids minting a device — the caller logs in through the SDK.
+ */
+async function registerAccount(
+  base: string,
+  username: string,
+  password: string,
+  token: string,
+): Promise<void> {
+  const url = `${base}/_matrix/client/v3/register`;
+  let auth: Record<string, unknown> | undefined;
+  let sessionId: string | undefined;
+  // Bounded: a single token stage (optionally + dummy).
+  for (let i = 0; i < 5; i++) {
+    const body: Record<string, unknown> = {
+      username,
+      password,
+      initial_device_display_name: "Discourse (Web)",
+      inhibit_login: true,
+    };
+    if (auth) body.auth = auth;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const json: any = await res.json().catch(() => ({}));
+    if (res.status === 200) return;
+    if (res.status === 401) {
+      sessionId = json.session ?? sessionId;
+      if (!sessionId) throw new Error("Registration couldn't start on this homeserver.");
+      const completed: string[] = json.completed ?? [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const stages: string[] = (json.flows ?? []).flatMap((f: any) => f.stages ?? []);
+      if (stages.length && !stages.includes("m.login.registration_token")) {
+        throw new Error("This homeserver doesn't allow creating an account from the app.");
+      }
+      auth = completed.includes("m.login.registration_token")
+        ? { type: "m.login.dummy", session: sessionId }
+        : { type: "m.login.registration_token", token, session: sessionId };
+    } else {
+      throw new Error(registrationError(json, res.status));
+    }
+  }
+  throw new Error("Registration didn't complete. Please try again.");
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function registrationError(json: any, status: number): string {
+  const msg = typeof json?.error === "string" && json.error ? json.error : null;
+  switch (json?.errcode) {
+    case "M_USER_IN_USE":
+      return "That username is already taken.";
+    case "M_INVALID_USERNAME":
+      return "That username isn't allowed. Use lowercase letters, numbers, and ._=-/";
+    case "M_WEAK_PASSWORD":
+      return msg ? `Weak password: ${msg}` : "That password is too weak.";
+    case "M_EXCLUSIVE":
+      return "That username is reserved.";
+    case "M_FORBIDDEN":
+      return "That registration token isn't valid.";
+    default:
+      return msg ?? `Registration failed (HTTP ${status}).`;
   }
 }
 

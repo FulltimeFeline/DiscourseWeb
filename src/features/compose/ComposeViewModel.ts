@@ -102,7 +102,7 @@ export async function createRoom(
   const roomId = await session.client.createRoom(params);
 
   if (input.parentSpaceId) {
-    await addChildToSpace(session, input.parentSpaceId, roomId).catch(() => {});
+    await addChildToSpace(session, input.parentSpaceId, roomId);
   }
   return roomId;
 }
@@ -139,7 +139,7 @@ export async function createVideoRoom(
   const json = await restPost(session, "_matrix/client/v3/createRoom", body);
   const roomId = json?.room_id;
   if (roomId && input.parentSpaceId) {
-    await addChildToSpace(session, input.parentSpaceId, roomId).catch(() => {});
+    await addChildToSpace(session, input.parentSpaceId, roomId);
   }
   return roomId;
 }
@@ -178,28 +178,22 @@ export async function joinByAddress(
 }
 
 /**
- * Add a child room/space to a parent space via the SpaceService
- * (`addChildToSpace(childId, spaceId)`). Falls back to a REST PUT of the
- * `m.space.child` state event when the SpaceService is unavailable (this build's
- * Room has no typed raw state-event send).
+ * File a just-created room/space under a parent space (`m.space.child`).
+ * Retried: a freshly-created room takes a sync round-trip to exist server-side,
+ * so the first PUT can 404/403 before it settles — a single attempt (the old
+ * behaviour) silently failed, which is why new rooms never showed up under
+ * their space. Returns true once the child event is written.
  */
 async function addChildToSpace(
   session: MatrixSession,
   spaceId: string,
   childId: string,
-): Promise<void> {
-  const spaces = session.spaceService as
-    | { addChildToSpace?: (childId: string, spaceId: string) => Promise<void> }
-    | undefined;
-  if (spaces?.addChildToSpace) {
-    await spaces.addChildToSpace(childId, spaceId);
-    return;
+): Promise<boolean> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    if (await session.addSpaceChild(spaceId, childId)) return true;
+    await new Promise((r) => setTimeout(r, 500));
   }
-  const via = [session.ownServerName].filter(Boolean);
-  await session.restPut(
-    `_matrix/client/v3/rooms/${encodeURIComponent(spaceId)}/state/m.space.child/${encodeURIComponent(childId)}`,
-    { via },
-  );
+  return false;
 }
 
 // A small POST helper (MatrixSession only exposes GET/PUT).

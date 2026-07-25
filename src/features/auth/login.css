@@ -1,9 +1,13 @@
 .login {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  gap: 28px;
+  padding: 40px 24px;
+  /* Scroll instead of clipping the card/links when the viewport is short. */
+  overflow-y: auto;
   background: radial-gradient(
     120% 120% at 50% 0%,
     color-mix(in srgb, var(--accent) 14%, var(--bg-app)) 0%,
@@ -94,4 +98,23 @@
   color: var(--unread-mention);
   font-size: 13px;
   padding: 4px 0;
+}
+.login__hint {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  margin: 6px 2px 0;
+}
+.login__toggle {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 6px 0;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+}
+.login__toggle:hover {
+  text-decoration: underline;
 }

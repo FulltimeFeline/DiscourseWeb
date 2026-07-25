@@ -75,10 +75,15 @@ export function LoginView({ app }: { app: AppState }) {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  void vm.loginWithPassword();
+                  if (s.isRegistering) void vm.register();
+                  else void vm.loginWithPassword();
                 }}
               >
-                {s.methods.oidc && <div className="login__or">or with a password</div>}
+                {s.isRegistering ? (
+                  <div className="login__or">create a new account</div>
+                ) : (
+                  s.methods.oidc && <div className="login__or">or with a password</div>
+                )}
                 <label className="login__label" htmlFor="user">
                   Username
                 </label>
@@ -87,7 +92,7 @@ export function LoginView({ app }: { app: AppState }) {
                   className="login__input"
                   value={s.username}
                   onChange={(e) => vm.setUsername(e.target.value)}
-                  placeholder="@you:server"
+                  placeholder={s.isRegistering ? "username" : "@you:server"}
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
@@ -99,11 +104,46 @@ export function LoginView({ app }: { app: AppState }) {
                   id="pass"
                   className="login__input"
                   type="password"
+                  autoComplete={s.isRegistering ? "new-password" : "current-password"}
                   value={s.password}
                   onChange={(e) => vm.setPassword(e.target.value)}
                 />
+                {s.isRegistering && (
+                  <>
+                    <label className="login__label" htmlFor="regtoken">
+                      Registration token
+                    </label>
+                    <input
+                      id="regtoken"
+                      className="login__input"
+                      value={s.registrationToken}
+                      onChange={(e) => vm.setRegistrationToken(e.target.value)}
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
+                    />
+                    <div className="login__hint">
+                      You need a registration token from the server admin.
+                    </div>
+                  </>
+                )}
                 <button className="login__primary" type="submit" disabled={s.busy}>
-                  {s.busy ? "Signing in…" : "Sign in"}
+                  {s.busy
+                    ? s.isRegistering
+                      ? "Creating account…"
+                      : "Signing in…"
+                    : s.isRegistering
+                      ? "Create account"
+                      : "Sign in"}
+                </button>
+                <button
+                  type="button"
+                  className="login__toggle"
+                  onClick={() => vm.setRegistering(!s.isRegistering)}
+                >
+                  {s.isRegistering
+                    ? "Already have an account? Sign in"
+                    : "New here? Create an account"}
                 </button>
               </form>
             )}

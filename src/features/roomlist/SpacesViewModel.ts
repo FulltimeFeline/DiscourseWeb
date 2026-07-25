@@ -386,38 +386,31 @@ export class SpacesViewModel extends ViewModel<SpacesState> {
   // --- filing / permissions -------------------------------------------------
 
   async toggleRoomInSpace(roomId: string, spaceId: string): Promise<void> {
-    const service = this.service;
-    if (!service) return;
     const set = this.childIds.get(spaceId);
     const isMember = set?.has(roomId) ?? false;
-    try {
-      if (isMember) {
-        await service.removeChildFromSpace(roomId, spaceId);
-        set?.delete(roomId);
-      } else {
-        await this.fileRoom(roomId, spaceId);
-      }
-      this.rebuildAllChildIds();
-      void this.loadChildren(spaceId);
-    } catch {
-      /* surfaced by caller */
+    // Go through the REST `m.space.child` helpers rather than
+    // SpaceService.add/removeChildToSpace — the WASM binding's write path is
+    // unreliable here, so filing/unfiling appeared to do nothing.
+    if (isMember) {
+      const ok = await this.session.removeSpaceChild(spaceId, roomId);
+      if (ok) set?.delete(roomId);
+    } else {
+      await this.fileRoom(roomId, spaceId);
     }
+    this.rebuildAllChildIds();
+    void this.loadChildren(spaceId);
   }
 
-  /** addChildToSpace, retried (a just-created room takes a sync to exist). */
+  /** File a room into a space, retried (a just-created room takes a sync to exist). */
   private async fileRoom(roomId: string, spaceId: string): Promise<void> {
-    const service = this.service;
-    if (!service) return;
     for (let attempt = 0; attempt < 10; attempt++) {
-      try {
-        await service.addChildToSpace(roomId, spaceId);
+      if (await this.session.addSpaceChild(spaceId, roomId)) {
         const set = this.childIds.get(spaceId) ?? new Set<string>();
         set.add(roomId);
         this.childIds.set(spaceId, set);
         return;
-      } catch {
-        await sleep(500);
       }
+      await sleep(500);
     }
   }
 

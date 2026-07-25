@@ -10,6 +10,7 @@ import {
   MembershipState_Tags,
   PowerLevel_Tags,
   RoomMemberRole,
+  StateEventType,
   type RoomInterface,
   type RoomMember,
 } from "@/matrix";
@@ -39,6 +40,10 @@ interface MembersState {
   loading: boolean;
   error: boolean;
   members: MemberEntry[];
+  /** Whether the own user may change members' power levels. */
+  canChangePowerLevels: boolean;
+  /** The own user's power level (promotion ceiling). */
+  ownPowerLevel: number;
 }
 
 const CHUNK = 100;
@@ -71,7 +76,13 @@ export class MembersViewModel extends ViewModel<MembersState> {
     private readonly session: MatrixSession,
     private readonly roomId: string,
   ) {
-    super({ loading: true, error: false, members: [] });
+    super({
+      loading: true,
+      error: false,
+      members: [],
+      canChangePowerLevels: false,
+      ownPowerLevel: 0,
+    });
     this.onDispose(() => {
       this.disposed = true;
     });
@@ -123,11 +134,44 @@ export class MembersViewModel extends ViewModel<MembersState> {
         });
       });
 
-      this.setState({ loading: false, error: false, members: collected });
+      // Own power-level + whether we can re-level members, for the role menu.
+      let canChangePowerLevels = false;
+      let ownPowerLevel = 0;
+      try {
+        const levels = await room.getPowerLevels();
+        if (this.disposed) return;
+        canChangePowerLevels = levels.canOwnUserSendState(StateEventType.RoomPowerLevels);
+        const own = levels.userPowerLevels()[this.session.userId];
+        ownPowerLevel = own !== undefined ? Number(own) : Number(levels.values().usersDefault);
+      } catch {
+        /* fail closed: no role menu */
+      }
+
+      this.setState({
+        loading: false,
+        error: false,
+        members: collected,
+        canChangePowerLevels,
+        ownPowerLevel,
+      });
     } catch (err) {
       console.warn(`[MembersViewModel] load failed for ${this.roomId}`, err);
       if (this.disposed) return;
       this.setState({ loading: false, error: true });
+    }
+  }
+
+  /** Promote/demote a member. Returns true on success; reloads the roster. */
+  async setPowerLevel(userId: string, level: number): Promise<boolean> {
+    const room = this.session.getRoom(this.roomId) as RoomInterface | undefined;
+    if (!room) return false;
+    try {
+      await room.updatePowerLevelsForUsers([{ userId, powerLevel: BigInt(level) }]);
+      await this.load();
+      return true;
+    } catch (err) {
+      console.warn(`[MembersViewModel] setPowerLevel failed for ${userId}`, err);
+      return false;
     }
   }
 

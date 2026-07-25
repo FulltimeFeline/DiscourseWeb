@@ -290,7 +290,7 @@ function MembersTab({
                     <RoleHeaderLabel tag={tag} /> — {group.length}
                   </div>
                   {group.map((m) => (
-                    <MemberRow key={m.userId} session={session} member={m} vm={vm} ownRole={ownRole} />
+                    <MemberRow key={m.userId} session={session} member={m} vm={vm} ownRole={ownRole} canChangeRoles={state.canChangePowerLevels} ownPowerLevel={state.ownPowerLevel} />
                   ))}
                 </div>
               );
@@ -299,7 +299,7 @@ function MembersTab({
               <div className="details-members__group details-members__group--offline">
                 <div className="details-members__group-title">Offline — {offlineMembers.length}</div>
                 {offlineMembers.map((m) => (
-                  <MemberRow key={m.userId} session={session} member={m} vm={vm} ownRole={ownRole} />
+                  <MemberRow key={m.userId} session={session} member={m} vm={vm} ownRole={ownRole} canChangeRoles={state.canChangePowerLevels} ownPowerLevel={state.ownPowerLevel} />
                 ))}
               </div>
             )}
@@ -318,11 +318,15 @@ function MemberRow({
   member,
   vm,
   ownRole,
+  canChangeRoles,
+  ownPowerLevel,
 }: {
   session: MatrixSession;
   member: MemberEntry;
   vm: MembersViewModel;
   ownRole: MemberRole;
+  canChangeRoles: boolean;
+  ownPowerLevel: number;
 }) {
   const presence = usePresence(session, member.userId);
   const state: PresenceState | undefined = presence?.state;
@@ -331,6 +335,35 @@ function MemberRow({
   const isSelf = member.userId === session.userId;
   // Can moderate a target strictly below our own power (and not ourselves).
   const canModerate = !isSelf && ROLE_RANK[ownRole] >= 1 && ROLE_RANK[ownRole] > ROLE_RANK[member.role];
+  // Can re-level a target strictly below our own power level.
+  const canSetRole = canChangeRoles && !isSelf && member.powerLevel < ownPowerLevel;
+
+  const setLevel = (level: number) => {
+    void vm.setPowerLevel(member.userId, Math.max(0, Math.min(level, ownPowerLevel)));
+  };
+  const promptLevel = () => {
+    const raw = window.prompt(
+      `Power level for ${member.displayName} (0–${ownPowerLevel}):`,
+      String(member.powerLevel),
+    );
+    if (raw == null) return;
+    const n = Number(raw.trim());
+    if (Number.isFinite(n)) setLevel(Math.round(n));
+  };
+  const roleItems = canSetRole
+    ? [
+        ...(ownPowerLevel >= 100 && member.powerLevel !== 100
+          ? [{ key: "admin", label: "Make Administrator (100)", onSelect: () => setLevel(100) }]
+          : []),
+        ...(ownPowerLevel > 50 && member.powerLevel !== 50
+          ? [{ key: "mod", label: "Make Moderator (50)", onSelect: () => setLevel(50) }]
+          : []),
+        ...(member.powerLevel !== 0
+          ? [{ key: "member", label: "Make Member (0)", onSelect: () => setLevel(0) }]
+          : []),
+        { key: "custom", label: "Set level…", onSelect: promptLevel },
+      ]
+    : [];
 
   const openMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -384,6 +417,7 @@ function MemberRow({
               label: "Copy user ID",
               onSelect: () => void navigator.clipboard?.writeText(member.userId),
             },
+            ...roleItems,
             ...(canModerate
               ? [
                   {
