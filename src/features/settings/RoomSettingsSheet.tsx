@@ -17,6 +17,7 @@ import {
   EncryptionState,
   JoinRule,
   AllowRule,
+  MembershipState_Tags,
   RoomHistoryVisibility,
   RoomVisibility,
   RoomNotificationMode,
@@ -812,7 +813,9 @@ function MembersTab({ room }: { room: RoomInterface }) {
         /* leave empty */
       }
     }
-    setMembers(out.filter((m) => String(m.membership).toLowerCase().includes("join")));
+    // `membership` is a tagged union — String(...) is "[object Object]", so the
+    // old substring check dropped everyone. Match the tag (as the details panel does).
+    setMembers(out.filter((m) => m.membership.tag === MembershipState_Tags.Join));
   }
 
   useEffect(() => {
