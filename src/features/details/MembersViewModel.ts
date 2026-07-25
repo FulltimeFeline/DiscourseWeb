@@ -126,26 +126,36 @@ export class MembersViewModel extends ViewModel<MembersState> {
         }
       }
 
-      collected.sort((a, b) => {
-        const w = ROLE_WEIGHT[a.role] - ROLE_WEIGHT[b.role];
-        if (w !== 0) return w;
-        return a.displayName.localeCompare(b.displayName, undefined, {
-          sensitivity: "base",
-        });
-      });
-
-      // Own power-level + whether we can re-level members, for the role menu.
+      // Own power-level, per-user levels, and whether we can re-level members.
       let canChangePowerLevels = false;
       let ownPowerLevel = 0;
       try {
         const levels = await room.getPowerLevels();
         if (this.disposed) return;
         canChangePowerLevels = levels.canOwnUserSendState(StateEventType.RoomPowerLevels);
-        const own = levels.userPowerLevels()[this.session.userId];
-        ownPowerLevel = own !== undefined ? Number(own) : Number(levels.values().usersDefault);
+        const usersDefault = Number(levels.values().usersDefault);
+        // userPowerLevels() is a Map — index with .get(), not [].
+        const userLevels = levels.userPowerLevels();
+        const own = userLevels.get(this.session.userId);
+        ownPowerLevel = own !== undefined ? Number(own) : usersDefault;
+        // Override each member's level from the fresh power_levels map: a
+        // RoomMember's own `powerLevel` can lag a recent promotion (the event
+        // updates before per-member state is recomputed), which is why a
+        // just-promoted admin still showed under "Member".
+        for (const m of collected) {
+          const explicit = userLevels.get(m.userId);
+          if (explicit !== undefined) m.powerLevel = Number(explicit);
+        }
       } catch {
         /* fail closed: no role menu */
       }
+
+      collected.sort((a, b) => {
+        if (a.powerLevel !== b.powerLevel) return b.powerLevel - a.powerLevel;
+        return a.displayName.localeCompare(b.displayName, undefined, {
+          sensitivity: "base",
+        });
+      });
 
       this.setState({
         loading: false,
