@@ -785,7 +785,7 @@ function MembersTab({ room }: { room: RoomInterface }) {
   const [members, setMembers] = useState<RoomMember[]>([]);
   const [invite, setInvite] = useState("");
 
-  async function reload() {
+  async function drain(): Promise<RoomMember[]> {
     const it = await room.members();
     const out: RoomMember[] = [];
     // eslint-disable-next-line no-constant-condition
@@ -794,6 +794,23 @@ function MembersTab({ room }: { room: RoomInterface }) {
       if (!chunk || chunk.length === 0) break;
       out.push(...chunk);
       if (chunk.length < 50) break;
+    }
+    return out;
+  }
+
+  async function reload() {
+    let out = await drain();
+    // Sliding sync: the roster is empty/partial until the room's timeline has
+    // fetched members from the server — otherwise "Members (0)". Fetch once and
+    // re-drain (same fallback the details panel uses).
+    if (out.length === 0) {
+      try {
+        const timeline = await room.timeline();
+        await timeline.fetchMembers();
+        out = await drain();
+      } catch {
+        /* leave empty */
+      }
     }
     setMembers(out.filter((m) => String(m.membership).toLowerCase().includes("join")));
   }
