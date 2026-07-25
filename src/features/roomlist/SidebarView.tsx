@@ -285,8 +285,10 @@ export function SidebarView({ app }: { app: AppState }) {
           const inSpace = scope.spaces.childRoomIds(s.id).includes(room.id);
           return {
             key: `space-${s.id}`,
-            label: inSpace ? `✓ ${s.name}` : `Add to ${s.name}`,
-            icon: "hash",
+            label: inSpace ? `Remove from ${s.name}` : `Add to ${s.name}`,
+            icon: inSpace ? "x" : "hash",
+            danger: inSpace,
+            confirm: inSpace ? `Remove “${room.name}” from ${s.name}?` : undefined,
             onSelect: () => void scope.spaces.toggleRoomInSpace(room.id, s.id),
           };
         }),
