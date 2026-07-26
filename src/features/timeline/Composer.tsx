@@ -119,6 +119,10 @@ interface PendingAttachment {
 let nextId = 0;
 const uid = () => `att-${nextId++}`;
 
+/** Release staged image previews; blobs stay pinned for the tab otherwise. */
+const revokePreviews = (list: PendingAttachment[]) =>
+  list.forEach((a) => a.previewUrl && URL.revokeObjectURL(a.previewUrl));
+
 // --- Component -------------------------------------------------------------
 
 export function Composer(props: ComposerProps) {
@@ -390,7 +394,14 @@ export function Composer(props: ComposerProps) {
 
   const sendSticker = useCallback(
     async (content: StickerContent) => {
-      await stickerStore.send(room.id, content);
+      setError(undefined);
+      // send() swallows its own failures and reports a boolean; keep the picker
+      // up on failure so the sticker can just be tapped again.
+      const ok = await stickerStore.send(room.id, content);
+      if (!ok) {
+        setError("Couldn’t send that sticker — check your connection or whether you can post here.");
+        return;
+      }
       setPicker(null);
     },
     [stickerStore, room.id],
@@ -398,14 +409,13 @@ export function Composer(props: ComposerProps) {
 
   const sendPackSticker = useCallback(
     async (emote: Emote) => {
-      await stickerStore.send(room.id, {
+      await sendSticker({
         body: emote.body ?? `:${emote.shortcode}:`,
         url: emote.url,
         info: emote.info,
       });
-      setPicker(null);
     },
-    [stickerStore, room.id],
+    [sendSticker],
   );
 
   // --- Send ----------------------------------------------------------------
@@ -431,6 +441,7 @@ export function Composer(props: ComposerProps) {
       } catch (err) {
         setError(String(err));
       }
+      revokePreviews(ready);
       onClearEdit?.();
       return;
     }
@@ -465,6 +476,10 @@ export function Composer(props: ComposerProps) {
       }
     }
     if (failed.length) setAttachments((prev) => [...prev, ...failed]);
+    // Everything that left the composer can release its preview. `failed` holds
+    // copies, so match on id — those chips still render their previewUrl.
+    const kept = new Set(failed.map((f) => f.id));
+    revokePreviews(ready.filter((a) => !kept.has(a.id)));
 
     // Text (as its own following message).
     if (!noText) {
@@ -476,6 +491,7 @@ export function Composer(props: ComposerProps) {
       } catch (err) {
         setError(String(err));
         setText(body); // restore on failure
+        saveDraft(room.id, body); // the optimistic clear removed it
       }
     }
 
@@ -576,7 +592,10 @@ export function Composer(props: ComposerProps) {
       document.removeEventListener("keydown", onKey, true);
     };
   }, [picker]);
-  useEffect(() => setPicker(null), [room.id]);
+  useEffect(() => {
+    setPicker(null);
+    setError(undefined);
+  }, [room.id]);
 
   // --- Auto-grow textarea --------------------------------------------------
   useEffect(() => {
@@ -615,13 +634,13 @@ export function Composer(props: ComposerProps) {
     });
   }, []);
 
-  // Revoke object URLs on unmount.
+  // Revoke object URLs on unmount. Via a ref mirror — an unmount-only cleanup
+  // would otherwise close over the first render's (empty) attachment list.
+  const attachmentsRef = useRef<PendingAttachment[]>([]);
   useEffect(() => {
-    return () => {
-      attachments.forEach((a) => a.previewUrl && URL.revokeObjectURL(a.previewUrl));
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    attachmentsRef.current = attachments;
+  }, [attachments]);
+  useEffect(() => () => revokePreviews(attachmentsRef.current), []);
 
   // --- Drag / drop / paste -------------------------------------------------
   const [dragOver, setDragOver] = useState(false);
@@ -658,6 +677,9 @@ export function Composer(props: ComposerProps) {
     recorderRef.current = rec;
     try {
       await rec.start();
+      // Torn down (room switch) while the permission prompt was up — the
+      // recorder already stopped itself; don't install a timer for it.
+      if (recorderRef.current !== rec) return;
       setRecording(true);
       recTimer.current = window.setInterval(() => {
         if (rec.interrupted) {
@@ -704,7 +726,10 @@ export function Composer(props: ComposerProps) {
   useEffect(() => {
     return () => {
       if (recTimer.current) clearInterval(recTimer.current);
+      recTimer.current = undefined;
       recorderRef.current?.stop(true);
+      recorderRef.current = undefined;
+      setRecording(false);
     };
   }, [room.id]);
 

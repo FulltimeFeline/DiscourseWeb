@@ -53,10 +53,14 @@ export function StickerPicker({
   useStore(stickerStore.version);
   useStore(customEmoji?.version ?? EMPTY_VERSION);
 
+  // Callers pass a fresh inline arrow for onSendPackSticker, so depend on its
+  // presence rather than its identity — refresh() bumps version and would
+  // otherwise re-run this effect forever.
+  const wantPacks = !!onSendPackSticker;
   useEffect(() => {
     void stickerStore.refresh();
-    if (onSendPackSticker) void customEmoji?.refreshIfStale();
-  }, [stickerStore, customEmoji, onSendPackSticker]);
+    if (wantPacks) void customEmoji?.refreshIfStale();
+  }, [stickerStore, customEmoji, wantPacks]);
 
   const [recents, setRecents] = useState<Sticker[]>([]);
   useEffect(() => {

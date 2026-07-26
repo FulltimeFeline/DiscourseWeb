@@ -9,6 +9,7 @@
 import type { AppState } from "@/app/AppState";
 import type { MatrixSession } from "@/core/MatrixSession";
 import { parsePermalink, type PermalinkTarget } from "./permalinks";
+import { setPendingJump } from "./pendingJump";
 
 export interface NavigateResult {
   ok: boolean;
@@ -47,6 +48,9 @@ export async function navigateToTarget(
   }
   const roomId = await resolveRoom(session, target.id, target.via);
   if (!roomId) return { ok: false };
+  // Park before selecting: for a cross-room jump the target pane mounts after
+  // this turn, so the dispatch below can only be heard by the outgoing room.
+  if (target.eventId) setPendingJump(roomId, target.eventId);
   app.selectRoom(roomId);
   // Ask the (soon-to-mount) timeline to scroll to the event, if the link
   // targeted one. RoomPane retries until the event is loaded.

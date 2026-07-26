@@ -27,6 +27,12 @@ function ensureHooks(): void {
       node.setAttribute("target", "_blank");
       node.setAttribute("rel", "noopener noreferrer nofollow");
     }
+    // Only mxc: images may load. A remote http(s) src is a working tracking
+    // pixel — it would hand the sender our IP and exact read time, inside an
+    // encrypted room. Keep the element so it degrades to its alt text.
+    if (node.tagName === "IMG" && !node.getAttribute("src")?.startsWith("mxc://")) {
+      node.removeAttribute("src");
+    }
   });
 }
 

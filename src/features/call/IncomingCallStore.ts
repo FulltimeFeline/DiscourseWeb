@@ -61,14 +61,17 @@ export class IncomingCallStore {
 
   private async watch(room: RoomInterface): Promise<void> {
     const id = room.id();
-    let isDirect = false;
+    // Claim the slot before awaiting: setWatchedRooms only guards on
+    // `watched.has(id)`, and it runs on every room-list publish — a second call
+    // landing inside this await would start a duplicate, orphaned subscription.
+    const entry: WatchedRoom = { room, lastCallActive: false, isDirect: false };
+    this.watched.set(id, entry);
     try {
-      isDirect = await room.isDirect();
+      entry.isDirect = await room.isDirect();
     } catch {
       /* default false */
     }
-    const entry: WatchedRoom = { room, lastCallActive: false, isDirect };
-    this.watched.set(id, entry);
+    if (this.watched.get(id) !== entry) return; // dropped or replaced meanwhile
     try {
       entry.handle = room.subscribeToRoomInfoUpdates({
         call: (info: RoomInfo) => this.onRoomInfo(id, info),

@@ -11,6 +11,7 @@ import type { UserProfile } from "@/matrix";
 import { RoomAvatar } from "@/features/quickswitcher/RoomAvatar";
 import { startDirectMessage, joinByAddress } from "@/features/compose/ComposeViewModel";
 import { navigateToPermalink } from "@/core/notifications/navigate";
+import { setPendingJump } from "@/core/notifications/pendingJump";
 import { useRoomListScope } from "@/features/roomlist/scope";
 import {
   searchPublicRooms,
@@ -39,6 +40,8 @@ export function SearchView({ onClose }: { onClose: () => void }) {
     [scope],
   );
   const jumpToMessage = (hit: MessageHit) => {
+    // Park before selecting — the target RoomPane mounts after this turn.
+    setPendingJump(hit.roomId, hit.eventId);
     app.selectRoom(hit.roomId);
     window.dispatchEvent(
       new CustomEvent("discourse:jump-to-event", { detail: { roomId: hit.roomId, eventId: hit.eventId } }),

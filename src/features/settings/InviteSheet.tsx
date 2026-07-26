@@ -8,6 +8,7 @@ import { useRoomListScope } from "@/features/roomlist/scope";
 import { RoomAvatar } from "@/features/roomlist/RoomAvatar";
 import type { UserProfile } from "@/matrix";
 import { Icon } from "@/ui/Icon";
+import "@/features/compose/compose.css";
 
 export function InviteSheet({
   roomId,
@@ -25,7 +26,10 @@ export function InviteSheet({
   const [results, setResults] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
   const [invited, setInvited] = useState<Set<string>>(new Set());
+  const [pending, setPending] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const alive = useRef(true);
 
   const search = useCallback(
     (t: string) => {
@@ -55,15 +59,35 @@ export function InviteSheet({
   );
 
   useEffect(() => () => clearTimeout(timer.current), []);
+  // Re-arm on mount, not just clear on unmount: StrictMode runs
+  // mount → cleanup → mount, so a cleanup-only version would latch `alive`
+  // false for the whole session in dev and every invite would hang on
+  // "Inviting…".
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const invite = (userId: string) => {
-    setInvited((s) => new Set(s).add(userId));
-    void scope.roomList.inviteUser(roomId, userId);
+  const invite = async (userId: string) => {
+    if (pending.has(userId) || invited.has(userId)) return;
+    setError(null);
+    setPending((s) => new Set(s).add(userId));
+    const failure = await scope.roomList.inviteUser(roomId, userId);
+    if (!alive.current) return;
+    setPending((s) => {
+      const next = new Set(s);
+      next.delete(userId);
+      return next;
+    });
+    if (failure) setError(failure);
+    else setInvited((s) => new Set(s).add(userId));
   };
 
   return (
@@ -84,6 +108,7 @@ export function InviteSheet({
               search(e.target.value);
             }}
           />
+          {error && <div className="cmp-error" role="alert">{error}</div>}
           <div className="cmp-results" role="listbox">
             {loading && <div className="cmp-hint">Searching…</div>}
             {!loading && term.trim() && results.length === 0 && <div className="cmp-hint">No people found</div>}
@@ -96,10 +121,10 @@ export function InviteSheet({
                 </span>
                 <button
                   className="cmp-btn cmp-btn--primary"
-                  disabled={invited.has(u.userId)}
-                  onClick={() => invite(u.userId)}
+                  disabled={invited.has(u.userId) || pending.has(u.userId)}
+                  onClick={() => void invite(u.userId)}
                 >
-                  {invited.has(u.userId) ? "Invited" : "Invite"}
+                  {invited.has(u.userId) ? "Invited" : pending.has(u.userId) ? "Inviting…" : "Invite"}
                 </button>
               </div>
             ))}

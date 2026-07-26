@@ -3,6 +3,7 @@
 
 import { marked } from "marked";
 import { preferences } from "@/core/Preferences";
+import { settingsPrefs } from "@/features/settings/settingsPrefs";
 import { sanitizeHtml } from "./sanitize";
 
 const bodyCache = new Map<string, string>();
@@ -62,11 +63,12 @@ function isToday(ts: number): boolean {
   );
 }
 
-const timeOpts = (): Intl.DateTimeFormatOptions => ({
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: !preferences.get("use24HourTime" as never),
-});
+// hourCycle rather than hour12:false — the latter resolves to h24 in some
+// locales and renders midnight as 24:05.
+const timeOpts = (): Intl.DateTimeFormatOptions =>
+  settingsPrefs.get("use24HourTime")
+    ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
+    : { hour: "2-digit", minute: "2-digit", hour12: true };
 
 /** Header timestamp: hh:mm today, "MMM d, hh:mm" earlier. */
 export function formatHeaderTime(ts: number): string {

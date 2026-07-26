@@ -28,7 +28,6 @@ export interface Prefs {
   showTypingIndicators: boolean;
   sendTypingNotifications: boolean;
   renderReactions: boolean;
-  coloredSenderNames: boolean;
   animatedEmotes: boolean;
   groupingWindowMinutes: number;
   jumboEmoji: boolean;
@@ -54,7 +53,6 @@ const DEFAULTS: Prefs = {
   showTypingIndicators: true,
   sendTypingNotifications: true,
   renderReactions: true,
-  coloredSenderNames: true,
   animatedEmotes: true,
   groupingWindowMinutes: 5,
   jumboEmoji: true,

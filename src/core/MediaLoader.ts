@@ -26,9 +26,33 @@ interface Request {
   thumbnail?: { width: number; height: number };
 }
 
+/** Full-content object URLs to keep resident before evicting the oldest. */
+const FULL_CACHE_BUDGET = 192 * 1024 * 1024;
+/** Never evict this many most-recently-used entries (open lightbox, playing video). */
+const FULL_CACHE_KEEP = 3;
+/** Grace period before an evicted URL is revoked, for elements still holding it. */
+const REVOKE_DELAY_MS = 60_000;
+/**
+ * A thumbnail-keyed entry this big is really a full file: `fetchBytes` falls
+ * back to the full content when the server can't thumbnail (the common avatar
+ * path on some homeservers). Classifying by request shape alone would leave
+ * those permanently resident — exactly the unbounded growth this cache bounds.
+ */
+const LARGE_ENTRY_BYTES = 1024 * 1024;
+
+interface CacheEntry {
+  url: string;
+  bytes: number;
+  /** Belongs to the evictable tier: full content, or an oversized thumbnail. */
+  full: boolean;
+  used: number;
+}
+
 export class MediaLoader {
-  private cache = new Map<string, string>(); // key → object URL
+  private cache = new Map<string, CacheEntry>();
   private inflight = new Map<string, Promise<string | undefined>>();
+  /** Evicted URLs awaiting their delayed revoke: timer → url. */
+  private pendingRevokes = new Map<ReturnType<typeof setTimeout>, string>();
 
   constructor(private client: ClientInterface) {}
 
@@ -100,22 +124,57 @@ export class MediaLoader {
 
   /** Returns a cached object URL synchronously if present. */
   cached(mxc: string, thumb?: { width: number; height: number }): string | undefined {
-    return this.cache.get(this.key(mxc, thumb));
+    const hit = this.cache.get(this.key(mxc, thumb));
+    if (!hit) return undefined;
+    hit.used = performance.now();
+    return hit.url;
+  }
+
+  /**
+   * Keep the full-content tier under budget. Full files are the expensive ones
+   * (a 40MB video each); thumbnails are small and stay resident. The most
+   * recently used few are never evicted — one of them is on screen.
+   */
+  private evictFullContent(): void {
+    const full = [...this.cache.entries()].filter(([, e]) => e.full);
+    let total = full.reduce((sum, [, e]) => sum + e.bytes, 0);
+    if (total <= FULL_CACHE_BUDGET) return;
+    full.sort((a, b) => a[1].used - b[1].used);
+    for (const [key, entry] of full.slice(0, Math.max(0, full.length - FULL_CACHE_KEEP))) {
+      if (total <= FULL_CACHE_BUDGET) break;
+      this.cache.delete(key);
+      total -= entry.bytes;
+      // Delay the revoke: an <img>/<video> may still be reading this URL.
+      const timer: ReturnType<typeof setTimeout> = setTimeout(() => {
+        this.pendingRevokes.delete(timer);
+        URL.revokeObjectURL(entry.url);
+      }, REVOKE_DELAY_MS);
+      this.pendingRevokes.set(timer, entry.url);
+    }
   }
 
   async load(req: Request): Promise<string | undefined> {
     if (!req.mxc && !req.source) return undefined;
     const key = this.key(req.mxc, req.thumbnail);
     const hit = this.cache.get(key);
-    if (hit) return hit;
+    if (hit) {
+      hit.used = performance.now();
+      return hit.url;
+    }
     const pending = this.inflight.get(key);
     if (pending) return pending;
 
     const task = (async () => {
       try {
         const bytes = await this.fetchBytes(req);
-        const url = URL.createObjectURL(toBlob(bytes, req.mimetype));
-        this.cache.set(key, url);
+        const blob = toBlob(bytes, req.mimetype);
+        const url = URL.createObjectURL(blob);
+        // Measure the blob rather than trusting the request: a failed thumbnail
+        // falls back to the full file under a thumbnail key, so size — not the
+        // request shape — decides whether it joins the evictable tier.
+        const full = !req.thumbnail || blob.size >= LARGE_ENTRY_BYTES;
+        this.cache.set(key, { url, bytes: blob.size, full, used: performance.now() });
+        if (full) this.evictFullContent();
         return url;
       } catch (err) {
         console.warn("media load failed", req.mxc, err);
@@ -148,7 +207,12 @@ export class MediaLoader {
   }
 
   dispose(): void {
-    for (const url of this.cache.values()) URL.revokeObjectURL(url);
+    for (const [timer, url] of this.pendingRevokes) {
+      clearTimeout(timer);
+      URL.revokeObjectURL(url);
+    }
+    this.pendingRevokes.clear();
+    for (const entry of this.cache.values()) URL.revokeObjectURL(entry.url);
     this.cache.clear();
     this.inflight.clear();
   }

@@ -136,14 +136,18 @@ function NewDmForm({ onClose }: { onClose: () => void }) {
   const { results, loading, search } = useUserSearch();
   const [term, setTerm] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
 
   const start = async (userId: string) => {
     if (busy) return;
     setBusy(true);
+    setError(undefined);
     try {
       const roomId = await startDirectMessage(session, userId);
       app.selectRoom(roomId);
       onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start the conversation");
     } finally {
       setBusy(false);
     }
@@ -158,6 +162,7 @@ function NewDmForm({ onClose }: { onClose: () => void }) {
         value={term}
         onChange={(e) => {
           setTerm(e.target.value);
+          setError(undefined);
           search(e.target.value);
         }}
         onKeyDown={(e) => {
@@ -167,6 +172,7 @@ function NewDmForm({ onClose }: { onClose: () => void }) {
           }
         }}
       />
+      {error && <div className="cmp-error">{error}</div>}
       <div className="cmp-results" role="listbox">
         {loading && <div className="cmp-hint">Searching…</div>}
         {!loading && term && results.length === 0 && (
@@ -179,7 +185,7 @@ function NewDmForm({ onClose }: { onClose: () => void }) {
             className="cmp-user"
             role="option"
             disabled={busy}
-            onClick={() => start(u.userId)}
+            onClick={() => void start(u.userId)}
           >
             <RoomAvatar name={u.displayName || u.userId} avatarUrl={u.avatarUrl} />
             <span className="cmp-user-text">
@@ -216,8 +222,14 @@ function NewRoomForm({ onClose }: { onClose: () => void }) {
     try {
       const input = { name, topic, isEncrypted: encrypted, visibility, parentSpaceId };
       const roomId = video ? await createVideoRoom(session, input) : await createRoom(session, input);
-      if (roomId) app.selectRoom(roomId);
-      onClose();
+      // Only the video path can come back empty — createVideoRoom goes through
+      // restPost, which returns undefined instead of throwing on a bad response.
+      if (roomId) {
+        app.selectRoom(roomId);
+        onClose();
+      } else {
+        setError("Could not create the video room. Check your connection and try again.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create room");
     } finally {

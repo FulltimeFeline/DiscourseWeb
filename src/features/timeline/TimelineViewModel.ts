@@ -99,6 +99,7 @@ export class TimelineViewModel extends ViewModel<TimelineState> {
   private explicitReceipts = new Map<string, string>(); // userId → eventId
   private ephemeralSince?: string;
   private ephemeralActive = false;
+  private ephemeralGen = 0;
   private lastOwnMessageId?: string;
 
   // Read-marker auto-dismiss
@@ -411,6 +412,11 @@ export class TimelineViewModel extends ViewModel<TimelineState> {
     const items = this.items;
     let appendedAtBottom = false;
     let shrunk = false;
+    // Rows whose shield we'd already fetched and whose replacement dropped it.
+    // MessageRow's one-shot observer won't re-ask (the entry id is unchanged),
+    // so the badge would vanish for the life of the mounted row — including on
+    // the UTD → decrypted transition, where it matters most.
+    const shieldRefreshIds = new Set<string>();
 
     for (const diff of diffs) {
       switch (diff.tag) {
@@ -451,10 +457,13 @@ export class TimelineViewModel extends ViewModel<TimelineState> {
         }
         case TimelineDiff_Tags.Set: {
           const { index, value } = diff.inner;
+          const mapped = this.mapItem(value);
+          const seen = this.shieldsRequested.has(mapped.id) || shieldRefreshIds.has(mapped.id);
           items[index] = value;
-          entries[index] = this.mapItem(value);
+          entries[index] = mapped;
           // Re-arm lazy work for this event (verification or shape may have changed).
-          this.rearmLazy(entries[index]);
+          this.rearmLazy(mapped);
+          if (seen && mapped.kind === "event") shieldRefreshIds.add(mapped.id);
           break;
         }
         case TimelineDiff_Tags.Remove: {
@@ -486,6 +495,7 @@ export class TimelineViewModel extends ViewModel<TimelineState> {
           }
           if (entries.length < prevLen) shrunk = true;
           this.shieldsRequested.clear();
+          shieldRefreshIds.clear();
           this.replyDetailsFetched.clear();
           break;
         }
@@ -504,6 +514,8 @@ export class TimelineViewModel extends ViewModel<TimelineState> {
 
     this.setEntries(entries, { reachedStart, unreadMarkerId });
     this.fetchPendingReplyDetails(entries);
+    // After setEntries: loadShieldIfNeeded looks the id up in this.state.entries.
+    for (const id of shieldRefreshIds) this.loadShieldIfNeeded(id);
 
     if (appendedAtBottom) {
       // The view decides whether to auto-scroll; mark read when at bottom.
@@ -885,18 +897,23 @@ export class TimelineViewModel extends ViewModel<TimelineState> {
   private startEphemeralSync(): void {
     if (this.ephemeralActive || this.mode.type !== "live") return;
     this.ephemeralActive = true;
-    void this.ephemeralLoop();
+    // A generation stamp, because stopping can't interrupt a loop parked on a
+    // 30s long-poll: parking and unparking would otherwise leave two loops
+    // racing the shared `ephemeralSince` cursor.
+    const gen = ++this.ephemeralGen;
+    void this.ephemeralLoop(gen);
   }
 
   private stopEphemeralSync(): void {
+    this.ephemeralGen++;
     this.ephemeralActive = false;
   }
 
-  private async ephemeralLoop(): Promise<void> {
+  private async ephemeralLoop(gen: number): Promise<void> {
     let failures = 0;
-    while (this.ephemeralActive && !this.disposed) {
+    while (gen === this.ephemeralGen && this.ephemeralActive && !this.disposed) {
       const result = await this.fetchRoomEphemerals(this.ephemeralSince);
-      if (!this.ephemeralActive) break;
+      if (gen !== this.ephemeralGen || !this.ephemeralActive || this.disposed) break;
       if (result) {
         failures = 0;
         this.ephemeralSince = result.nextBatch;
@@ -942,14 +959,23 @@ export class TimelineViewModel extends ViewModel<TimelineState> {
 
     const roomBlock = json.rooms?.join?.[this.roomId];
     const receipts: Record<string, string> = {};
+    const receiptTs: Record<string, number> = {};
     let typing: string[] | undefined;
     const ephemeralEvents: any[] = roomBlock?.ephemeral?.events ?? [];
     for (const ev of ephemeralEvents) {
       if (ev.type === "m.receipt") {
         for (const [eventId, byType] of Object.entries(ev.content ?? {})) {
           const read = (byType as any)?.["m.read"] ?? {};
-          for (const userId of Object.keys(read)) {
+          for (const [userId, meta] of Object.entries(read)) {
+            // MSC3771 puts threaded receipts in the same EDU. The live timeline
+            // hides threaded events, so recording one as a main-timeline
+            // position would erase that reader from the room timeline.
+            const threadId = (meta as any)?.thread_id;
+            if (threadId != null && threadId !== "main") continue;
+            const ts = typeof (meta as any)?.ts === "number" ? (meta as any).ts : 0;
+            if (ts < (receiptTs[userId] ?? -1)) continue;
             receipts[userId] = eventId;
+            receiptTs[userId] = ts;
           }
         }
       } else if (ev.type === "m.typing") {

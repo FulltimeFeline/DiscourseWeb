@@ -14,6 +14,7 @@ import { RoomSearchSheet } from "./RoomSearchSheet";
 import { DetailsPanel } from "@/features/details/DetailsPanel";
 import { Icon } from "@/ui/Icon";
 import { settingsPrefs } from "@/features/settings/settingsPrefs";
+import { consumePendingJump, peekPendingJump } from "@/core/notifications/pendingJump";
 import "./timeline.css";
 
 interface Props {
@@ -120,6 +121,7 @@ export function RoomPane({ app, roomId }: Props) {
       const detail = (e as CustomEvent<{ roomId?: string; eventId?: string }>).detail;
       if (!detail?.eventId || detail.roomId !== roomId) return;
       const eventId = detail.eventId;
+      consumePendingJump(roomId, eventId); // we're handling it; don't jump twice
       let tries = 0;
       const attempt = () => {
         const handle = tvRef.current;
@@ -134,6 +136,17 @@ export function RoomPane({ app, roomId }: Props) {
     window.addEventListener("discourse:jump-to-event", onJump);
     return () => window.removeEventListener("discourse:jump-to-event", onJump);
   }, [roomId]);
+
+  // A cross-room jump is dispatched before this pane exists (MainShell keys
+  // RoomPane on the room), so it's also parked. `vm` is undefined on the first
+  // render, so this runs once TimelineView has committed.
+  useEffect(() => {
+    if (!vm) return;
+    const eventId = peekPendingJump(roomId);
+    if (eventId && consumePendingJump(roomId, eventId)) {
+      void tvRef.current?.jumpToEvent(eventId);
+    }
+  }, [roomId, vm]);
 
   // These three flow as props into the memoized MessageRow (via TimelineView's
   // itemContent). They MUST be referentially stable, or every timeline state

@@ -569,14 +569,25 @@ export class RoomListViewModel extends ViewModel<RoomListState> {
     }
   }
 
-  /** Invite a user (by id) to a room; surfaces failures in the sidebar. */
-  async inviteUser(roomId: string, userId: string): Promise<void> {
+  /**
+   * Invite a user (by id) to a room. Returns null on success, else the
+   * user-visible message. Failures also go to the sidebar banner, which is the
+   * only surface when the caller (e.g. a closed invite sheet) has gone away.
+   */
+  async inviteUser(roomId: string, userId: string): Promise<string | null> {
     const room = this.session.getRoom(roomId);
-    if (!room) return;
+    if (!room) {
+      const message = `Couldn't invite ${userId}: the room isn't available.`;
+      this.reportActionError(message);
+      return message;
+    }
     try {
       await room.inviteUserById(userId);
+      return null;
     } catch (err) {
-      this.reportActionError(`Couldn't invite ${userId}: ${errText(err)}`);
+      const message = `Couldn't invite ${userId}: ${errText(err)}`;
+      this.reportActionError(message);
+      return message;
     }
   }
 

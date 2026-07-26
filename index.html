@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/icon.png?v=2" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- img-src only: every image the app shows comes from the media loader as a
+         blob:, so a remote <img> in a message body can only be a tracking pixel. -->
+    <meta http-equiv="Content-Security-Policy" content="img-src 'self' data: blob:" />
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#1c1c1e" />
     <title>Discourse</title>

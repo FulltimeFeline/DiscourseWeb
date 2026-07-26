@@ -48,7 +48,8 @@ function createWindow() {
       void shell.openExternal(url);
       return { action: "deny" };
     }
-    return { action: "allow" };
+    // Everything else (blob:, data:, file:) would open a same-origin window.
+    return { action: "deny" };
   });
 }
 

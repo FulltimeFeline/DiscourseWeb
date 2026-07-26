@@ -68,7 +68,14 @@ export class VoiceRecorder {
    */
   async start(): Promise<void> {
     if (this.recorder) return;
-    this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // stop() can land while the permission prompt is still up (a room switch
+    // tears the composer down). Don't resume into a live mic nobody owns.
+    if (this.stopping) {
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
+    this.stream = stream;
     this.mimetype = preferredMime();
     this.recorder = new MediaRecorder(this.stream, { mimeType: this.mimetype });
     this.chunks = [];

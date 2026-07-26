@@ -28,6 +28,7 @@ import { RoomAvatar } from "@/features/roomlist/RoomAvatar";
 import { useMemberProfile } from "@/features/details/memberProfiles";
 import { observeOnce } from "./rowVisibility";
 import { modals } from "@/features/settings/ModalManager";
+import { settingsPrefs } from "@/features/settings/settingsPrefs";
 import {
   formatDuration,
   formatHeaderTime,
@@ -50,6 +51,7 @@ interface Props {
 export const MessageRow = memo(function MessageRow(props: Props) {
   const { entry, vm, ownUserId } = props;
   const prefs = useStore(preferences);
+  const sprefs = useStore(settingsPrefs);
   const session = useSession();
   const customEmoji = useCustomEmoji(session);
   const pronouns = usePronouns(session, entry.sender);
@@ -131,7 +133,7 @@ export const MessageRow = memo(function MessageRow(props: Props) {
                 }
               }}
               title={entry.sender}
-              style={prefs.coloredSenderNames ? { color: colorFor(entry.sender) } : undefined}
+              style={sprefs.coloredSenderNames ? { color: colorFor(entry.sender) } : undefined}
             >
               {entry.senderProfile.displayName ?? localpart(entry.sender)}
             </span>
@@ -437,8 +439,17 @@ function FileView({
 }) {
   const session = useSession();
   const download = async () => {
-    const u = await session.mediaLoader.load({ source: content.source, mxc: content.source.mxc, mimetype: content.mimetype });
-    if (u) window.open(u, "_blank");
+    const u = await session.mediaLoader.load({ source: content.source.source, mxc: content.source.mxc, mimetype: content.mimetype });
+    if (!u) return;
+    // Never window.open() a blob: URL — an attacker-chosen mimetype would run as
+    // a same-origin document. Force a download instead. The URL is memoized by
+    // MediaLoader, so it must not be revoked here.
+    const a = document.createElement("a");
+    a.href = u;
+    a.download = content.body || "download";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   };
   return (
     <button className="msg-file" onClick={() => void download()}>
@@ -514,6 +525,7 @@ function PollView({
 }
 
 function ReplyPreviewView({ reply, onJump }: { reply: ReplyPreview; onJump: (id: string) => void }) {
+  const sprefs = useStore(settingsPrefs);
   const body =
     reply.status === "ready"
       ? reply.body ?? "…"
@@ -529,7 +541,11 @@ function ReplyPreviewView({ reply, onJump }: { reply: ReplyPreview; onJump: (id:
       {reply.senderName && (
         <span
           className="reply-preview__name"
-          style={reply.senderId ? { color: colorFor(reply.senderId) } : undefined}
+          style={
+            sprefs.coloredSenderNames && reply.senderId
+              ? { color: colorFor(reply.senderId) }
+              : undefined
+          }
         >
           {reply.senderName}
         </span>
@@ -743,7 +759,7 @@ function ContextMenu(props: Props & { x: number; y: number; onClose: () => void 
             role="menuitem"
             className="ctx-menu__item ctx-menu__item--danger"
             onClick={act(() => {
-              if (!preferences.get("confirmBeforeDeleting" as never) || window.confirm("Delete this message?")) {
+              if (!settingsPrefs.get("confirmBeforeDeleting") || window.confirm("Delete this message?")) {
                 void vm.redactEvent(entry);
               }
             })}

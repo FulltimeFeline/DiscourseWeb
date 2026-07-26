@@ -407,8 +407,14 @@ function MemberRow({
                     key: "dm",
                     label: "Message",
                     onSelect: async () => {
-                      const rid = await startDirectMessage(session, member.userId);
-                      if (rid) window.dispatchEvent(new CustomEvent("discourse:select-room", { detail: { roomId: rid } }));
+                      // The menu unmounts on select, so there is nowhere to
+                      // surface a failure; at least don't leave it unhandled.
+                      try {
+                        const rid = await startDirectMessage(session, member.userId);
+                        if (rid) window.dispatchEvent(new CustomEvent("discourse:select-room", { detail: { roomId: rid } }));
+                      } catch (err) {
+                        console.error("[details] could not start DM", err);
+                      }
                     },
                   },
                 ]),
@@ -608,7 +614,10 @@ function FileRow({ session, item }: { session: MatrixSession; item: MediaItem })
     setBusy(true);
     try {
       const url = await session.mediaLoader.load({
-        source: item.source,
+        // The boxed FFI MediaSource, not the MediaRef wrapper — the wrapper
+        // fails `isFfiSource`, falls back to MediaSource.fromUrl(mxc) and
+        // downloads raw ciphertext for encrypted rooms.
+        source: item.source.source,
         mxc: item.source.mxc,
         mimetype: item.mimetype,
       });

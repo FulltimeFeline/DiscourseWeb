@@ -256,23 +256,56 @@ function RoomListBridge({
     }
     notifyPrimed.current = true;
   }, [roomList.rooms, notifier]);
-  // One-shot banner when a new invite arrives (primed so launch-time pending
-  // invites don't all fire at once).
-  const invitesSeen = useRef<Set<string>>(new Set());
-  const invitesPrimed = useRef(false);
+  // One-shot banner when a new invite arrives. An in-memory "primed" flag can't
+  // work here: the room list publishes `invites: []` for the first second of
+  // every load, so the flag would flip against an empty list and every pending
+  // invite would re-notify on each reload. Persist the seen ids per account
+  // instead (same shape as the read-watermark store).
+  const invitesSeen = useRef<Set<string> | undefined>(undefined);
+  const invitesPrimeOnly = useRef(false);
+  const invitesSeeded = useRef(false);
   useEffect(() => {
+    const key = `discourse:seeninvites:${session.userId}`;
+    if (!invitesSeen.current) {
+      let stored: string[] | null = null;
+      try {
+        stored = JSON.parse(localStorage.getItem(key) ?? "null") as string[] | null;
+      } catch {
+        /* ignore corrupt storage */
+      }
+      // A profile with nothing recorded yet takes this session to record its
+      // backlog silently, rather than bannering invites that may be months old.
+      invitesPrimeOnly.current = stored === null;
+      invitesSeen.current = new Set(Array.isArray(stored) ? stored : []);
+    }
+    const seen = invitesSeen.current;
+    // Seed the key once on a priming session, even with nothing to record, so
+    // the next load sees a stored (possibly empty) list and starts notifying.
+    // Once, not per publish: `invites` is a fresh array on every room-list
+    // publish (i.e. every sync), and localStorage.setItem is synchronous.
+    let changed = invitesPrimeOnly.current && !invitesSeeded.current;
     for (const inv of roomList.invites) {
-      if (invitesSeen.current.has(inv.id)) continue;
-      invitesSeen.current.add(inv.id);
-      if (!invitesPrimed.current) continue;
+      if (seen.has(inv.id)) continue;
+      seen.add(inv.id);
+      changed = true;
+      if (invitesPrimeOnly.current) continue;
       notifier.notifyInvite({
         roomId: inv.id,
         roomName: inv.name,
         inviterName: inv.inviter?.displayName ?? inv.inviter?.userId ?? "Someone",
       });
     }
-    invitesPrimed.current = true;
-  }, [roomList.invites, notifier]);
+    if (changed) {
+      invitesSeeded.current = true;
+      try {
+        localStorage.setItem(key, JSON.stringify([...seen].slice(-200)));
+      } catch {
+        /* storage full / unavailable */
+      }
+    }
+    // Deliberately not pruning ids that are absent from `invites`: the list is
+    // empty for the first ~second of every load.
+  }, [roomList.invites, notifier, session.userId]);
   // OS notification for an ongoing call in any room (group calls included),
   // tap to join; cleared when the call ends. Skips calls we're in ourselves.
   const callStore = useMemo(() => incomingCallStoreFor(session), [session]);

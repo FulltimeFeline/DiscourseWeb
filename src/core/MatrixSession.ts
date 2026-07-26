@@ -55,6 +55,11 @@ export class MatrixSession {
   private resolvedApiBase?: string;
   private serverBaseCache = new Map<string, string>();
   private started = false;
+  private sendQueueDisabled = false;
+  private sendQueueTimer?: ReturnType<typeof setTimeout>;
+  /** Consecutive re-enable attempts, for the backoff. Reset when sync recovers. */
+  private sendQueueAttempts = 0;
+  private sendQueueLastError = 0;
 
   constructor(client: ClientInterface, storeId: string, passphrase: string) {
     this.client = client;
@@ -98,10 +103,36 @@ export class MatrixSession {
     this.subs.track(
       sync.state({
         onUpdate: (state: unknown) => {
-          this.syncState.set(normalizeSyncState(state));
+          const next = normalizeSyncState(state);
+          const wasRunning = this.syncState.value === "running";
+          this.syncState.set(next);
+          // Connectivity came back: re-enable anything the SDK disabled while
+          // we were offline, once the store has settled. A real reconnect also
+          // clears the backoff — the previous failures were the outage.
+          if (!wasRunning && next === "running") {
+            this.sendQueueAttempts = 0;
+            if (this.sendQueueDisabled) setTimeout(() => void this.reenableSendQueues(), 0);
+          }
         },
       }),
     );
+
+    // The SDK disables a room's send queue on a failed send and never re-enables
+    // it, so every later message in that room fails too until each one is
+    // retried by hand. Watch for the error and re-enable when sync recovers.
+    try {
+      this.subs.track(
+        this.client.subscribeToSendQueueStatus({
+          onError: () => {
+            this.sendQueueDisabled = true;
+            this.scheduleSendQueueReenable();
+          },
+        }),
+      );
+      this.subs.add(() => clearTimeout(this.sendQueueTimer));
+    } catch {
+      // older bindings without the send-queue reporter
+    }
 
     await sync.start();
   }
@@ -116,7 +147,39 @@ export class MatrixSession {
   }
 
   async enableAllSendQueues(): Promise<void> {
-    await this.client.enableAllSendQueues(true);
+    try {
+      await this.client.enableAllSendQueues(true);
+    } catch {
+      // client torn down, or the call raced a logout
+    }
+  }
+
+  /**
+   * Debounced re-enable; only fires while sync is actually running.
+   *
+   * Backed off, because re-enabling retries the queued event: against a server
+   * that keeps failing it (a persistent 5xx) a fixed delay would be a hot
+   * retry loop hammering the homeserver for as long as the app is open.
+   */
+  private scheduleSendQueueReenable(): void {
+    if (this.sendQueueTimer !== undefined) return;
+    // Only *consecutive* failures back off. An isolated blip a week into the
+    // session must still recover in 2s, not inherit an hour-old escalation.
+    const now = Date.now();
+    if (now - this.sendQueueLastError > 60_000) this.sendQueueAttempts = 0;
+    this.sendQueueLastError = now;
+    const delay = Math.min(2000 * 2 ** this.sendQueueAttempts, 60_000);
+    this.sendQueueAttempts++;
+    this.sendQueueTimer = setTimeout(() => {
+      this.sendQueueTimer = undefined;
+      if (this.syncState.value !== "running") return;
+      void this.reenableSendQueues();
+    }, delay);
+  }
+
+  private async reenableSendQueues(): Promise<void> {
+    this.sendQueueDisabled = false;
+    await this.enableAllSendQueues();
   }
 
   getRoom(roomId: string): RoomInterface | undefined {
